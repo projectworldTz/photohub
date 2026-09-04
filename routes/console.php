@@ -45,6 +45,24 @@ Artisan::command('photohub:create-admin {email} {--name=PhotoHub Administrator}'
     return 0;
 })->purpose('Create or reset the live platform super administrator');
 
+Artisan::command('photohub:seed-demo {--force}', function () {
+    if (app()->environment('production') && ! $this->option('force') && ! $this->confirm('Create public demo accounts and sample studio data on this live installation?')) {
+        $this->warn('Demo data was not created.');
+
+        return 1;
+    }
+
+    $originalEnvironment = app()->environment();
+    app()->detectEnvironment(fn () => 'demo');
+    $exitCode = $this->call('db:seed', ['--force' => true]);
+    app()->detectEnvironment(fn () => $originalEnvironment);
+    if ($exitCode === 0) {
+        $this->warn('Demo login: owner@example.com / PhotoHub2026! — change this password before sharing the site.');
+    }
+
+    return $exitCode;
+})->purpose('Seed an idempotent demonstration studio across all modules');
+
 Artisan::command('photohub:recover-gallery-files {gallery}', function (int $gallery) {
     $record = Gallery::findOrFail($gallery);
     $disk = Storage::disk('local');

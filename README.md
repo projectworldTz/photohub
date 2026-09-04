@@ -73,6 +73,8 @@ php artisan optimize
 
 Production seeding creates only required roles, permissions, and subscription plans. It does not create the public demo users or sample LensCraft records. The administrator command asks for the password securely and does not place it in command history.
 
+To explicitly add the full demonstration studio on an installed system, run `php artisan photohub:seed-demo`. On production, the command asks for confirmation before creating sample records across CRM, bookings, shoots, staff, galleries, finance, equipment, contracts, tasks, communications, orders, prints, portfolio, subscriptions, support, and reviews. Its studio owner is `owner@example.com` with temporary password `PhotoHub2026!`; reset that password before sharing a live installation.
+
 In cPanel **Cron Jobs**, add the scheduler once per minute (replace the username and PHP path if Truehost supplies different values):
 
 ```cron
