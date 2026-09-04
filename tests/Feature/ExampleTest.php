@@ -14,6 +14,11 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertSee('images/photohub-logo-web.png', false)
+            ->assertSee('favicon.png', false);
+
+        $this->get('/images/photohub-logo-web.png')->assertOk();
+        $this->get('/favicon.png')->assertOk();
     }
 }

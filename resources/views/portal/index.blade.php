@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>My PhotoHub portal</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="{{ asset('css/photohub.css') }}" rel="stylesheet"></head><body>
+<!doctype html><html><head><link rel="icon" type="image/png" href="{{ asset('favicon.png') }}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>My PhotoHub portal</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="{{ asset('css/photohub.css') }}" rel="stylesheet"></head><body>
 <nav class="navbar bg-white border-bottom"><div class="container"><span class="brand dark">PhotoHub</span><form method="POST" action="{{ route('logout') }}">@csrf<button class="btn btn-light">Sign out</button></form></div></nav>
 <main class="container py-5">@if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif<h1>Welcome, {{ $customer->full_name }}</h1>
 <div class="row g-3 my-3">
