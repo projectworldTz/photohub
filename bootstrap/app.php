@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureActiveBusiness;
+use App\Http\Middleware\EnsureImpersonationIsReadOnly;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'business' => EnsureActiveBusiness::class,
             'permission' => EnsurePermission::class,
+            'impersonation.readonly' => EnsureImpersonationIsReadOnly::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

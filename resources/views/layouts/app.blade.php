@@ -51,6 +51,9 @@
         ],
     ];
 @endphp
+@if(session('impersonator_id'))
+<div class="alert alert-warning rounded-0 border-0 mb-0 d-flex flex-wrap align-items-center justify-content-center gap-3" role="status"><strong><i class="bi bi-eye-fill"></i> View-as-owner mode</strong><span>You are viewing {{ $currentBusiness->name ?? 'this studio' }} as {{ auth()->user()->name }}. Changes are disabled.</span><form method="POST" action="{{ route('admin.impersonation.stop') }}">@csrf<button class="btn btn-sm btn-dark">Return to platform administration</button></form></div>
+@endif
 <div class="app-shell">
     <aside class="sidebar offcanvas-lg offcanvas-start" id="sidebar" tabindex="-1" aria-label="Main navigation">
         <div class="sidebar-head">

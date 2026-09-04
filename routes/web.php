@@ -13,6 +13,7 @@ use App\Http\Controllers\FinalDeliveryController;
 use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\GalleryWorkflowController;
 use App\Http\Controllers\GuestSelectionController;
+use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\NotificationController;
@@ -59,6 +60,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/reset-password', [PasswordController::class, 'update'])->name('password.update');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::post('/admin/businesses/{business}/view-as-owner', [ImpersonationController::class, 'start'])->middleware('auth')->name('admin.impersonation.start');
+Route::post('/admin/impersonation/stop', [ImpersonationController::class, 'stop'])->middleware('auth')->name('admin.impersonation.stop');
 Route::put('/account/password', [PasswordController::class, 'change'])->middleware('auth')->name('account.password');
 Route::middleware('auth')->prefix('portal')->name('portal.')->group(function () {
     Route::get('/', [PortalController::class, 'index'])->name('index');
@@ -93,7 +96,7 @@ Route::post('/gallery/{code}/selection/complete', [PublicGalleryController::clas
 Route::post('/gallery/{code}/photo/{photo}/favorite', [PublicGalleryController::class, 'favorite'])->name('public.gallery.favorite')->middleware('throttle:120,1');
 Route::post('/gallery/{code}/orders', [PublicGalleryController::class, 'order'])->name('public.gallery.order')->middleware('throttle:20,1');
 Route::get('/gallery/{code}/orders/{order}', [PublicGalleryController::class, 'orderShow'])->name('public.order')->middleware('throttle:60,1');
-Route::middleware(['auth', 'business'])->group(function () {
+Route::middleware(['auth', 'business', 'impersonation.readonly'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/search', SearchController::class)->name('search');
     Route::get('/activity', ActivityController::class)->name('activity.index')->middleware('permission:settings.manage');
