@@ -1,0 +1,1 @@
+<div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4"><div><span class="eyebrow">{{ $eyebrow ?? 'PHOTOHub' }}</span><h1 class="page-title mb-0">{{ $title }}</h1>@isset($subtitle)<p class="text-muted mb-0">{{ $subtitle }}</p>@endisset</div>{{ $slot }}</div>

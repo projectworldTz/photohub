@@ -1,0 +1,13 @@
+<?php
+
+namespace App\Events;
+
+use App\Models\Gallery;
+use Illuminate\Foundation\Events\Dispatchable;
+
+class PhotoSelectionCompleted
+{
+    use Dispatchable;
+
+    public function __construct(public Gallery $gallery) {}
+}

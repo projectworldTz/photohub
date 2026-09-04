@@ -1,0 +1,6 @@
+@extends('layouts.app')
+@section('title',$shoot->shoot_number)
+@section('content')
+<x-page-header :title="$shoot->shoot_number" :subtitle="$shoot->event.' · '.$shoot->customer->full_name">@if(in_array($shoot->status,['completed','photos_uploaded','editing','ready','delivered']))<a class="btn btn-primary" href="{{ route('galleries.create',['shoot_id'=>$shoot->id]) }}">Create Selection Gallery</a>@endif</x-page-header>
+<form method="POST" action="{{ route('shoots.update',$shoot) }}" class="content-card">@csrf @method('PUT')<label>Status</label><select name="status" class="form-select">@foreach(['planned','on_the_way','shooting','completed','photos_uploaded','editing','ready','delivered'] as $status)<option value="{{ $status }}" @selected($shoot->status===$status)>{{ str($status)->replace('_',' ')->title() }}</option>@endforeach</select><label class="mt-3">Delivery date</label><input type="date" name="expected_delivery_date" class="form-control" value="{{ $shoot->expected_delivery_date?->format('Y-m-d') }}"><label class="mt-3">Notes</label><textarea name="notes" class="form-control">{{ $shoot->notes }}</textarea><button class="btn btn-primary mt-3">Update shoot</button></form>
+@endsection
