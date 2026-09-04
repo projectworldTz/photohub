@@ -21,11 +21,11 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('photohub:create-admin {email} {--name=PhotoHub Administrator}', function (string $email) {
-    $password = $this->secret('Choose a password (at least 12 characters)');
+    $password = $this->secret('Choose a password (at least 8 characters)');
     $confirmation = $this->secret('Confirm the password');
     $validation = Validator::make(
         ['email' => $email, 'password' => $password, 'password_confirmation' => $confirmation],
-        ['email' => ['required', 'email'], 'password' => ['required', 'string', 'min:12', 'confirmed']],
+        ['email' => ['required', 'email'], 'password' => ['required', 'string', 'min:8', 'confirmed']],
     );
 
     if ($validation->fails()) {

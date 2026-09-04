@@ -79,7 +79,7 @@ class AdminBusinessController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate(['name' => 'required|string|max:150', 'owner_name' => 'required|string|max:150', 'owner_email' => 'required|email|unique:users,email', 'email' => 'required|email|unique:businesses,email', 'phone' => 'required|string|max:30', 'city' => 'required|string|max:100', 'country' => 'required|string|max:100', 'category' => 'required|string|max:100', 'currency' => 'required|string|size:3', 'timezone' => 'required|timezone', 'password' => 'required|string|min:12']);
+        return $request->validate(['name' => 'required|string|max:150', 'owner_name' => 'required|string|max:150', 'owner_email' => 'required|email|unique:users,email', 'email' => 'required|email|unique:businesses,email', 'phone' => 'required|string|max:30', 'city' => 'required|string|max:100', 'country' => 'required|string|max:100', 'category' => 'required|string|max:100', 'currency' => 'required|string|size:3', 'timezone' => 'required|timezone', 'password' => 'required|string|min:8']);
     }
 
     private function slug(string $name): string

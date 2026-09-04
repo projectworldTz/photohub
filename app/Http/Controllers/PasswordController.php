@@ -43,7 +43,7 @@ class PasswordController extends Controller
 
     public function change(Request $request): RedirectResponse
     {
-        $data = $request->validate(['current_password' => 'required|current_password', 'password' => 'required|string|min:12|confirmed']);
+        $data = $request->validate(['current_password' => 'required|current_password', 'password' => 'required|string|min:8|confirmed']);
         $request->user()->update(['password' => $data['password']]);
         $request->session()->regenerate();
 
