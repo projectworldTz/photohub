@@ -6,15 +6,44 @@ use App\Models\Invoice;
 use App\Models\Photo;
 use App\Models\Quotation;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Services\NotificationService;
 use App\Services\ReminderService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('photohub:create-admin {email} {--name=PhotoHub Administrator}', function (string $email) {
+    $password = $this->secret('Choose a password (at least 12 characters)');
+    $confirmation = $this->secret('Confirm the password');
+    $validation = Validator::make(
+        ['email' => $email, 'password' => $password, 'password_confirmation' => $confirmation],
+        ['email' => ['required', 'email'], 'password' => ['required', 'string', 'min:12', 'confirmed']],
+    );
+
+    if ($validation->fails()) {
+        foreach ($validation->errors()->all() as $error) {
+            $this->error($error);
+        }
+
+        return 1;
+    }
+
+    $user = User::query()->updateOrCreate(
+        ['email' => strtolower($email)],
+        ['name' => (string) $this->option('name'), 'password' => Hash::make($password), 'is_super_admin' => true, 'is_active' => true],
+    );
+    $this->info("Super administrator {$user->email} is ready.");
+
+    return 0;
+})->purpose('Create or reset the live platform super administrator');
 
 Artisan::command('photohub:recover-gallery-files {gallery}', function (int $gallery) {
     $record = Gallery::findOrFail($gallery);

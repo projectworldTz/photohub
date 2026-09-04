@@ -31,9 +31,15 @@ class DatabaseSeeder extends Seeder
             $role = Role::firstOrCreate(['slug' => $slug], ['name' => str($slug)->title(), 'is_system' => true]);
             $role->permissions()->sync($ids);
         }
-        $admin = User::firstOrCreate(['email' => 'admin@example.com'], ['name' => 'PhotoHub Admin', 'password' => 'PhotoHub2026!', 'is_super_admin' => true]);
         SubscriptionPlan::firstOrCreate(['slug' => 'starter'], ['name' => 'Starter', 'price' => 25000, 'storage_limit_mb' => 10240, 'gallery_limit' => 20, 'is_active' => true]);
         SubscriptionPlan::firstOrCreate(['slug' => 'professional'], ['name' => 'Professional', 'price' => 75000, 'storage_limit_mb' => 102400, 'gallery_limit' => 200, 'is_active' => true]);
+
+        // Production needs system roles and plans, but must never receive demo accounts.
+        if ($this->command?->getLaravel()->environment('production')) {
+            return;
+        }
+
+        $admin = User::firstOrCreate(['email' => 'admin@example.com'], ['name' => 'PhotoHub Admin', 'password' => 'PhotoHub2026!', 'is_super_admin' => true]);
         $business = Business::firstOrCreate(['slug' => 'lenscraft-studio'], ['name' => 'LensCraft Studio', 'email' => 'owner@example.com', 'phone' => '+255 712 345 678', 'city' => 'Dar es Salaam', 'country' => 'Tanzania', 'category' => 'Wedding & Events', 'currency' => 'TZS', 'timezone' => 'Africa/Dar_es_Salaam', 'trial_ends_at' => now()->addDays(14)]);
         foreach ([['LensCraft Owner', 'owner@example.com', 'owner', 'Business Owner'], ['Amina Photographer', 'photographer@example.com', 'photographer', 'Lead Photographer'], ['Neema Manager', 'manager@example.com', 'manager', 'Studio Manager'], ['Baraka Accountant', 'accountant@example.com', 'accountant', 'Accountant'], ['Rehema Editor', 'editor@example.com', 'editor', 'Photo Editor'], ['Juma Receptionist', 'receptionist@example.com', 'receptionist', 'Receptionist']] as $index => [$name,$email,$role,$title]) {
             $user = User::firstOrCreate(['email' => $email], ['name' => $name, 'password' => 'PhotoHub2026!']);

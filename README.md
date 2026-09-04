@@ -55,6 +55,38 @@ For production set `APP_ENV=production`, `APP_DEBUG=false`, use HTTPS, configure
 
 ## Production operations
 
+### Truehost/cPanel subdomain deployment
+
+Create the subdomain `photohub.projectworldtz.com` in cPanel **Domains** and point its document root to the application's `public` directory, for example `/home/CPANEL_USER/photohub/public`. Keep the rest of the Laravel project above the public web root. Upload or clone the repository into `/home/CPANEL_USER/photohub`, copy `.env.production.example` to `.env`, and replace every placeholder with the database and mail values created in cPanel. Never upload the local `.env` or SQLite database.
+
+Run these commands from the project directory using cPanel Terminal or SSH:
+
+```bash
+composer install --no-dev --optimize-autoloader
+cp .env.production.example .env
+php artisan key:generate
+php artisan migrate --seed --force
+php artisan photohub:create-admin you@projectworldtz.com
+php artisan storage:link
+php artisan optimize
+```
+
+Production seeding creates only required roles, permissions, and subscription plans. It does not create the public demo users or sample LensCraft records. The administrator command asks for the password securely and does not place it in command history.
+
+In cPanel **Cron Jobs**, add the scheduler once per minute (replace the username and PHP path if Truehost supplies different values):
+
+```cron
+* * * * * cd /home/CPANEL_USER/photohub && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
+```
+
+Add a second cron entry for shared hosting where a persistent queue worker is unavailable:
+
+```cron
+* * * * * cd /home/CPANEL_USER/photohub && /usr/local/bin/php artisan queue:work database --stop-when-empty --tries=3 --timeout=300 >> /dev/null 2>&1
+```
+
+Enable AutoSSL for the subdomain before opening the site. Ensure PHP 8.2 or newer is selected with `gd`, `zip`, `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, and `intl`, and make `storage` and `bootstrap/cache` writable by the hosting account.
+
 Run at least one persistent database-queue worker. Supervisor or systemd should restart it on failure:
 
 ```bash
