@@ -29,6 +29,6 @@ class GalleryAccessToken extends Model
 
     public function isUsable(): bool
     {
-        return ! $this->revoked_at && $this->expires_at->isFuture();
+        return ! $this->revoked_at && $this->expires_at->isFuture() && $this->gallery && ! $this->gallery->isExpired() && $this->gallery->status !== 'archived';
     }
 }

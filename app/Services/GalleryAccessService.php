@@ -16,7 +16,7 @@ class GalleryAccessService
             $gallery->accessTokens()->where('purpose', $purpose)->whereNull('revoked_at')->update(['revoked_at' => now()]);
         }
         $plain = Str::random(48);
-        $record = $gallery->accessTokens()->create(['purpose' => $purpose, 'token_hash' => hash('sha256', $plain), 'token_encrypted' => Crypt::encryptString($plain), 'generated_at' => now(), 'expires_at' => $expiresAt ?? now()->addYear()]);
+        $record = $gallery->accessTokens()->create(['purpose' => $purpose, 'token_hash' => hash('sha256', $plain), 'token_encrypted' => Crypt::encryptString($plain), 'generated_at' => now(), 'expires_at' => $expiresAt ?? $gallery->expires_at ?? now()->addDays(30)]);
         $this->log($gallery, $purpose.'_link_generated', ['token_id' => $record->id, 'expires_at' => $record->expires_at]);
 
         return $record;

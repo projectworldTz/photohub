@@ -6,13 +6,13 @@ use App\Models\GalleryAccessToken;
 use App\Models\Photo;
 use App\Services\GalleryAccessService;
 use App\Services\PhotoSelectionService;
+use App\Services\PhotoStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class GuestSelectionController extends Controller
@@ -21,7 +21,7 @@ class GuestSelectionController extends Controller
     {
         $record = $access->resolve($token, 'selection');
         if (! $record || ! $record->isUsable()) {
-            return view('public.link-unavailable', ['expired' => $record?->expires_at?->isPast()]);
+            return view('public.link-unavailable', ['expired' => ($record?->expires_at?->isPast() || $record?->gallery?->isExpired())]);
         }
         if ($record->gallery->pin_hash && ! $request->session()->get('gallery_token_pin.'.$record->id)) {
             return view('public.selection-pin', ['token' => $token, 'gallery' => $record->gallery]);
@@ -69,9 +69,9 @@ class GuestSelectionController extends Controller
         $record = $this->authorized($request, $token, $access);
         abort_unless($photo->gallery_id === $record->gallery_id && $photo->is_proof, 404);
         $path = $photo->preview_path ?: $photo->thumbnail_path;
-        abort_unless($path && Storage::disk('local')->exists($path), 404);
+        abort_unless($path && PhotoStorage::disk($path)->exists($path), 404);
 
-        return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private,max-age=3600']);
+        return response(PhotoStorage::disk($path)->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private,no-store']);
     }
 
     public function submit(Request $request, string $token, GalleryAccessService $access, PhotoSelectionService $selections): RedirectResponse
@@ -81,7 +81,7 @@ class GuestSelectionController extends Controller
         $selections->complete($gallery, $gallery->customer_id);
         $access->log($gallery, 'selection_submitted', ['count' => $gallery->fresh()->submitted_selection_count]);
 
-        return back()->with('success', 'Selection submitted successfully. Your photographer will now prepare the final edited photos.');
+        return back()->with('success', 'Your selected photos have been sent to your photographer for editing. Thank you!')->with('selection_success', true);
     }
 
     private function authorized(Request $request, string $plain, GalleryAccessService $access): GalleryAccessToken

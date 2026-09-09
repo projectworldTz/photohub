@@ -1,8 +1,29 @@
 @extends('layouts.app')
-@section('title','Reports')
+@section('title','Reports & trends')
 @section('content')
-<x-page-header title="Financial report"><div class="d-flex gap-2"><a class="btn btn-light" href="{{ route('reports.csv',request()->query()) }}">Export CSV</a><a class="btn btn-light" href="{{ route('reports.pdf',request()->query()) }}">Export PDF</a></div></x-page-header>
-<form class="row g-2 mb-4"><div class="col"><input type="date" name="from" value="{{ $from->format('Y-m-d') }}" class="form-control"></div><div class="col"><input type="date" name="to" value="{{ $to->format('Y-m-d') }}" class="form-control"></div><div class="col"><button class="btn btn-primary">Apply</button></div></form><div class="row g-3">@foreach($report as $name=>$value)<div class="col-md-4"><div class="metric-card"><div><small>{{ str($name)->replace('_',' ')->title() }}</small><h3>{{ $name==='bookings'?$value:$currentBusiness->currency.' '.number_format($value) }}</h3></div></div></div>@endforeach</div>
-<div class="row g-3 mt-2">@foreach(['customers'=>'Revenue by customer','events'=>'Revenue by event','packages'=>'Package performance','methods'=>'Payment methods'] as $key=>$title)<div class="col-lg-6"><div class="content-card h-100"><h5>{{ $title }}</h5><div class="table-responsive"><table class="table"><thead><tr><th>Name</th>@if($key==='packages')<th>Bookings</th>@endif<th class="text-end">Total</th></tr></thead><tbody>@forelse($breakdowns[$key] as $row)<tr><td>{{ str($row->label)->replace('_',' ')->title() }}</td>@if($key==='packages')<td>{{ $row->bookings }}</td>@endif<td class="text-end">{{ $currentBusiness->currency }} {{ number_format((float)$row->total) }}</td></tr>@empty<tr><td colspan="3">No data in this period.</td></tr>@endforelse</tbody></table></div></div></div>@endforeach</div>
-<div class="content-card mt-3"><h5>Staff performance</h5><div class="table-responsive"><table class="table"><thead><tr><th>Staff member</th><th>Shoots assigned</th><th>Completed</th><th>Booked revenue</th></tr></thead><tbody>@foreach($breakdowns['staff'] as $staff)<tr><td>{{ $staff->user->name }}</td><td>{{ $staff->shoots_assigned }}</td><td>{{ $staff->shoots_completed }}</td><td>{{ $currentBusiness->currency }} {{ number_format((float)$staff->revenue) }}</td></tr>@endforeach</tbody></table></div></div>
+<link rel="stylesheet" href="{{ asset('css/reports.css') }}">
+<div class="report-page">
+<x-page-header title="Reports & trends" subtitle="Track income, understand costs and see how your studio changes over time.">
+<div class="d-flex gap-2"><a id="report-csv" class="btn btn-light" href="{{ route('reports.csv',request()->query()) }}">Export CSV</a><a id="report-pdf" class="btn btn-light" href="{{ route('reports.pdf',request()->query()) }}">Export PDF</a></div>
+</x-page-header>
+<form data-today="{{ now()->toDateString() }}" id="report-filters" action="{{ route('reports.index') }}" method="GET" class="report-filters content-card mb-4">
+<div class="d-flex flex-wrap gap-2 mb-3" aria-label="Quick date ranges">
+@foreach(['7'=>'Last 7 days','30'=>'Last 30 days','90'=>'Last 90 days','month'=>'This month','year'=>'Year to date'] as $range=>$label)
+<button type="button" class="btn btn-sm btn-outline-secondary" data-range="{{ $range }}">{{ $label }}</button>
+@endforeach
+</div>
+<div class="row g-3 align-items-end">
+<div class="col-6 col-lg-3"><label for="report-from" class="form-label">From</label><input id="report-from" type="date" name="from" value="{{ $from->toDateString() }}" class="form-control" required></div>
+<div class="col-6 col-lg-3"><label for="report-to" class="form-label">To</label><input id="report-to" type="date" name="to" value="{{ $to->toDateString() }}" class="form-control" required></div>
+<div class="col-6 col-lg-3"><label for="report-interval" class="form-label">Group by</label><select id="report-interval" class="form-select" name="interval">@foreach(['auto'=>'Automatic','day'=>'Daily','week'=>'Weekly','month'=>'Monthly'] as $value=>$label)<option value="{{ $value }}" @selected(request('interval','auto')===$value)>{{ $label }}</option>@endforeach</select></div>
+<div class="col-6 col-lg-3"><button class="btn btn-primary w-100" type="submit">Apply filters</button></div>
+<div class="col-12"><input type="hidden" name="compare" value="0"><label class="d-flex gap-2 align-items-center"><input id="report-compare" type="checkbox" name="compare" value="1" @checked($compare)> Compare with the previous period of equal length</label></div>
+</div>
+</form>
+<p id="report-status" role="status" aria-live="polite" class="small text-muted">Filters update every chart and breakdown. Hover or tap a chart for exact values.</p>
+<div id="report-error" role="alert" class="alert alert-danger" hidden></div>
+<div id="report-results">@include('reports.results')</div>
+<script id="report-chart-data" type="application/json">@json($analytics)</script>
+</div>
 @endsection
+@push('scripts')<script src="{{ asset('js/reports.js') }}" defer></script>@endpush

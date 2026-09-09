@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\StorageQuotaService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,9 +15,16 @@ class Business extends Model
 
     protected $fillable = ['name', 'slug', 'email', 'phone', 'address', 'city', 'country', 'logo_path', 'description', 'category', 'currency', 'timezone', 'status', 'trial_ends_at'];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Business $business) {
+            $business->storage_limit_bytes = 3 * StorageQuotaService::GB;
+        });
+    }
+
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime'];
+        return ['trial_ends_at' => 'datetime', 'storage_limit_bytes' => 'integer'];
     }
 
     public function users(): BelongsToMany
@@ -32,6 +40,11 @@ class Business extends Model
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class);
+    }
+
+    public function galleries(): HasMany
+    {
+        return $this->hasMany(Gallery::class)->withTrashed();
     }
 
     public function subscriptions(): HasMany

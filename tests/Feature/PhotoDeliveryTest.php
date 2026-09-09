@@ -31,7 +31,7 @@ class PhotoDeliveryTest extends TestCase
         $u = User::where('email', 'owner@example.com')->first();
         $g = $this->gallery($b);
         $this->actingAs($u)->withSession(['business_id' => $b->id])->post(route('galleries.upload', $g), ['photos' => [UploadedFile::fake()->image('photo.jpg', 1200, 800)], 'is_final' => 1])->assertRedirect();
-        $p = Photo::first();
+        $p = $g->photos()->firstOrFail();
         Storage::disk('local')->assertExists($p->original_path);
         Storage::disk('local')->assertExists($p->preview_path);
         Storage::disk('local')->assertExists($p->thumbnail_path);

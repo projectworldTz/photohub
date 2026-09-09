@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\Photo;
 use App\Models\Shoot;
 use App\Services\DashboardAnalyticsService;
+use App\Services\StorageQuotaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -31,7 +32,7 @@ class DashboardController extends Controller
             'customersCount' => Customer::forBusiness($business->id)->count(),
             'galleriesCount' => Gallery::forBusiness($business->id)->count(),
             'photosCount' => Photo::forBusiness($business->id)->count(),
-            'storageMb' => round(Photo::forBusiness($business->id)->sum('file_size') / 1048576, 1),
+            'storageMb' => round(app(StorageQuotaService::class)->usage($business)['used'] / 1048576, 1),
             'pendingEditing' => Shoot::forBusiness($business->id)->whereIn('status', ['photos_uploaded', 'editing'])->count(),
             'awaitingDelivery' => Gallery::forBusiness($business->id)->whereIn('status', ['final', 'selection_completed'])->count(),
             'unpaidInvoices' => Invoice::forBusiness($business->id)->whereIn('status', ['unpaid', 'partially_paid', 'overdue'])->count(),

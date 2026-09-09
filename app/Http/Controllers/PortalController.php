@@ -30,7 +30,7 @@ class PortalController extends Controller
     {
         $c = $this->customer();
 
-        return view('portal.index', ['customer' => $c, 'contracts' => Contract::where('customer_id', $c->id)->latest()->get(), 'bookings' => Booking::where('customer_id', $c->id)->latest()->get(), 'galleries' => Gallery::where('customer_id', $c->id)->latest()->get(), 'invoices' => Invoice::with('payments.receipt')->where('customer_id', $c->id)->latest()->get(), 'quotations' => Quotation::where('customer_id', $c->id)->latest()->get(), 'payments' => Payment::with('receipt')->where('customer_id', $c->id)->latest('payment_date')->get(), 'orders' => Order::where('customer_id', $c->id)->latest()->get(), 'messages' => Message::where('customer_id', $c->id)->latest()->limit(30)->get(), 'hasReviewed' => Review::where('customer_id', $c->id)->exists()]);
+        return view('portal.index', ['customer' => $c, 'bookings' => Booking::where('customer_id', $c->id)->latest()->get(), 'galleries' => Gallery::where('customer_id', $c->id)->latest()->get(), 'invoices' => Invoice::with('payments.receipt')->where('customer_id', $c->id)->latest()->get(), 'payments' => Payment::with('receipt')->where('customer_id', $c->id)->latest('payment_date')->get(), 'orders' => Order::where('customer_id', $c->id)->latest()->get()]);
     }
 
     public function message(Request $r): RedirectResponse

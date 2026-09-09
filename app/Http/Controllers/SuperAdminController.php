@@ -26,7 +26,7 @@ class SuperAdminController extends Controller
     {
         $this->guard();
 
-        return view('admin.index', ['businesses' => Business::withCount('users')->latest()->paginate(30), 'archived' => Business::onlyTrashed()->latest('deleted_at')->get(), 'plans' => SubscriptionPlan::where('is_active', true)->get(), 'stats' => ['businesses' => Business::withTrashed()->count(), 'active' => Business::where('status', 'active')->count(), 'users' => User::count(), 'customers' => Customer::count(), 'photos' => Photo::count(), 'storage_mb' => round(Photo::sum('file_size') / 1048576, 1), 'monthly_revenue' => Payment::whereMonth('payment_date', now()->month)->sum('amount')]]);
+        return view('admin.index', ['businesses' => Business::withCount(['users', 'galleries'])->latest()->paginate(30), 'archived' => Business::onlyTrashed()->latest('deleted_at')->get(), 'plans' => SubscriptionPlan::where('is_active', true)->get(), 'stats' => ['businesses' => Business::withTrashed()->count(), 'active' => Business::where('status', 'active')->count(), 'users' => User::count(), 'customers' => Customer::count(), 'photos' => Photo::count(), 'storage_mb' => round(Photo::sum('file_size') / 1048576, 1), 'monthly_revenue' => Payment::whereMonth('payment_date', now()->month)->sum('amount')]]);
     }
 
     public function status(Request $r, Business $business): RedirectResponse

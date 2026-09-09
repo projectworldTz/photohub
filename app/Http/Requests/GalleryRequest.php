@@ -21,6 +21,13 @@ class GalleryRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // Empty form inputs become null in Laravel, but stored prices are non-null.
+        // Only normalize submitted fields so edits that omit a price preserve it.
+        foreach (['photo_price', 'extra_photo_price'] as $price) {
+            if ($this->has($price) && in_array($this->input($price), [null, ''], true)) {
+                $this->merge([$price => 0]);
+            }
+        }
         foreach (['downloads_enabled', 'payment_required', 'watermark_enabled', 'require_exact_selection'] as $x) {
             $this->merge([$x => $this->boolean($x)]);
         }

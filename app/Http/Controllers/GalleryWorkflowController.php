@@ -8,11 +8,13 @@ use App\Models\GalleryAccessToken;
 use App\Models\Photo;
 use App\Services\FinalPhotoService;
 use App\Services\GalleryAccessService;
+use App\Services\PhotoStorage;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use ZipArchive;
 
@@ -79,21 +81,25 @@ class GalleryWorkflowController extends Controller
         return back()->with('success', 'Editing marked as in progress.');
     }
 
-    public function uploadFinals(Request $request, Gallery $gallery, FinalPhotoService $service, GalleryAccessService $access): RedirectResponse
+    public function uploadFinals(Request $request, Gallery $gallery, FinalPhotoService $service, GalleryAccessService $access): RedirectResponse|JsonResponse
     {
         $this->guard($gallery);
         $data = $request->validate(['finals' => 'required|array|min:1|max:100', 'finals.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:51200', 'proof_photo_id' => 'nullable|integer']);
         if (isset($data['proof_photo_id']) && ! $gallery->photos()->whereKey($data['proof_photo_id'])->whereHas('selections')->exists()) {
-            return back()->withErrors(['proof_photo_id' => 'Choose a selected proof photo from this gallery.'])->withInput();
+            throw ValidationException::withMessages(['proof_photo_id' => 'Choose a selected proof photo from this gallery.']);
         }
+        $finals = $service->storeBatch($gallery, $data['finals'], $data['proof_photo_id'] ?? null);
         $gallery->update(['status' => 'final_upload_in_progress']);
-        foreach ($data['finals'] as $file) {
-            $final = $service->store($gallery, $file, $data['proof_photo_id'] ?? null);
+        foreach ($finals as $final) {
             $access->log($gallery, 'final_photo_uploaded', ['final_photo_id' => $final->id, 'proof_photo_id' => $final->proof_photo_id]);
         }
         $selectedCount = DB::table('photo_selections')->join('photos', 'photos.id', '=', 'photo_selections.photo_id')->where('photos.gallery_id', $gallery->id)->count();
         if ($gallery->finalPhotos()->whereNotNull('proof_photo_id')->count() >= $selectedCount) {
             $gallery->update(['status' => 'final_ready']);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['uploaded' => count($finals)]);
         }
 
         return back()->with('success', 'Final edited photos uploaded and matched where filenames agreed.');
@@ -102,6 +108,9 @@ class GalleryWorkflowController extends Controller
     public function publish(Request $request, Gallery $gallery, GalleryAccessService $access): RedirectResponse
     {
         $this->guard($gallery);
+        if (! $gallery->finalPhotos()->where('status', 'ready')->exists()) {
+            return back()->withErrors(['finals' => 'Upload finished photos before creating a download link.']);
+        }
         $selected = DB::table('photo_selections')->join('photos', 'photos.id', '=', 'photo_selections.photo_id')->where('photos.gallery_id', $gallery->id)->count();
         $matched = $gallery->finalPhotos()->whereNotNull('proof_photo_id')->count();
         if ($matched < $selected && ! $request->boolean('confirm_incomplete')) {
@@ -127,8 +136,8 @@ class GalleryWorkflowController extends Controller
         $zip = new ZipArchive;
         abort_unless($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true, 500, 'Unable to create the download archive.');
         foreach ($photos as $index => $photo) {
-            abort_unless(Storage::disk('local')->exists($photo->original_path), 404, "Original file missing for {$photo->filename}.");
-            $zip->addFile(Storage::disk('local')->path($photo->original_path), sprintf('%04d-%s', $index + 1, basename($photo->filename)));
+            abort_unless(PhotoStorage::disk($photo->original_path)->exists($photo->original_path), 404, "Original file missing for {$photo->filename}.");
+            $zip->addFile(PhotoStorage::disk($photo->original_path)->path($photo->original_path), sprintf('%04d-%s', $index + 1, basename($photo->filename)));
         }
         $zip->close();
         $access->log($gallery, 'selected_originals_downloaded', ['count' => $photos->count()]);
@@ -140,18 +149,18 @@ class GalleryWorkflowController extends Controller
     {
         $this->guard($gallery);
         abort_unless($photo->gallery_id === $gallery->id && $photo->selections()->exists(), 404);
-        abort_unless(Storage::disk('local')->exists($photo->original_path), 404);
+        abort_unless(PhotoStorage::disk($photo->original_path)->exists($photo->original_path), 404);
         $access->log($gallery, 'selected_original_downloaded', ['photo_id' => $photo->id]);
 
-        return Storage::disk('local')->download($photo->original_path, $photo->filename);
+        return PhotoStorage::disk($photo->original_path)->download($photo->original_path, $photo->filename);
     }
 
     public function finalPreview(Gallery $gallery, FinalPhoto $photo)
     {
         $this->guard($gallery);
-        abort_unless($photo->gallery_id === $gallery->id && Storage::disk('local')->exists($photo->thumbnail_path), 404);
+        abort_unless($photo->gallery_id === $gallery->id && PhotoStorage::disk($photo->thumbnail_path)->exists($photo->thumbnail_path), 404);
 
-        return response(Storage::disk('local')->get($photo->thumbnail_path), 200, ['Content-Type' => 'image/jpeg']);
+        return response(PhotoStorage::disk($photo->thumbnail_path)->get($photo->thumbnail_path), 200, ['Content-Type' => 'image/jpeg']);
     }
 
     private function guard(Gallery $gallery): void

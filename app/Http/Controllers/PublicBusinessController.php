@@ -7,7 +7,6 @@ use App\Models\Lead;
 use App\Models\Package;
 use App\Models\Photo;
 use App\Models\PortfolioCategory;
-use App\Models\Review;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +21,7 @@ class PublicBusinessController extends Controller
     {
         $b = Business::where('slug', $slug)->where('status', 'active')->firstOrFail();
 
-        return view('public.business', ['business' => $b, 'packages' => Package::forBusiness($b->id)->where('is_active', true)->get(), 'reviews' => Review::forBusiness($b->id)->where('is_public', true)->latest()->get(), 'portfolio' => PortfolioCategory::with('photos.gallery')->forBusiness($b->id)->get()]);
+        return view('public.business', ['business' => $b, 'packages' => Package::forBusiness($b->id)->where('is_active', true)->get(), 'portfolio' => PortfolioCategory::with(['photos' => fn ($query) => $query->whereHas('gallery', fn ($g) => $g->where('expires_at', '>', now())->whereNotIn('status', ['expired', 'archived']))->with('gallery')])->forBusiness($b->id)->get()]);
     }
 
     public function book(Request $r, string $slug, NotificationService $notifications): RedirectResponse
@@ -39,10 +38,11 @@ class PublicBusinessController extends Controller
     {
         $business = Business::where('slug', $slug)->where('status', 'active')->firstOrFail();
         abort_unless($photo->business_id === $business->id && $photo->portfolioCategories()->exists(), 404);
+        abort_unless($photo->gallery && ! $photo->gallery->isExpired() && $photo->gallery->status !== 'archived', 410);
         $path = $photo->preview_path ?: $photo->thumbnail_path;
-        abort_unless($path && Storage::disk('local')->exists($path), 404);
+        abort_unless($path && \App\Services\PhotoStorage::disk($path)->exists($path), 404);
 
-        return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'public,max-age=3600']);
+        return response(\App\Services\PhotoStorage::disk($path)->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private,no-store']);
     }
 
     public function logo(string $slug): Response

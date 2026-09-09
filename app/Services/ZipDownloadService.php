@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Gallery;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use ZipArchive;
 
@@ -22,7 +21,7 @@ class ZipDownloadService
         $zip = new ZipArchive;
         abort_unless($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true, 500);
         foreach ($photos as $photo) {
-            $source = Storage::disk('local')->path($photo->original_path);
+            $source = PhotoStorage::disk($photo->original_path)->path($photo->original_path);
             abort_unless(is_file($source), 404);
             $zip->addFile($source, basename($photo->filename));
         }$zip->close();

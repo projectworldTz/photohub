@@ -44,7 +44,7 @@ class CustomerController extends Controller
     {
         $this->guard($customer);
 
-        $customer->load(['bookings' => fn ($q) => $q->latest('event_date'), 'shoots' => fn ($q) => $q->latest('shoot_date'), 'galleries' => fn ($q) => $q->latest(), 'invoices' => fn ($q) => $q->latest(), 'quotations' => fn ($q) => $q->latest(), 'payments' => fn ($q) => $q->latest('payment_date'), 'contracts' => fn ($q) => $q->latest(), 'messages' => fn ($q) => $q->latest()->limit(10), 'reviews' => fn ($q) => $q->latest(), 'orders' => fn ($q) => $q->latest()]);
+        $customer->load(['bookings' => fn ($q) => $q->latest('event_date'), 'shoots' => fn ($q) => $q->latest('shoot_date'), 'galleries' => fn ($q) => $q->latest(), 'invoices' => fn ($q) => $q->latest(), 'payments' => fn ($q) => $q->latest('payment_date'), 'orders' => fn ($q) => $q->latest()]);
 
         return view('customers.show', compact('customer'));
     }

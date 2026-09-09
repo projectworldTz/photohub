@@ -12,14 +12,16 @@ use App\Models\Photo;
 use App\Models\Shoot;
 use App\Services\GalleryAccessService;
 use App\Services\PhotoProcessingService;
+use App\Services\PhotoStorage;
 use App\Services\QRCodeService;
 use App\Services\SubscriptionLimitService;
 use App\Services\ZipDownloadService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -28,14 +30,18 @@ class GalleryController extends Controller
     public function index(Request $request): View
     {
         $businessId = app('currentBusiness')->id;
-        $query = Gallery::with('customer')->withCount('photos')->forBusiness($businessId)->latest();
+        $query = Gallery::with('customer')->withCount(['photos', 'finalPhotos'])->forBusiness($businessId)->latest();
         if ($request->filled('search')) {
             $term = $request->string('search')->trim()->value();
             $query->where(fn ($q) => $q->where('name', 'like', "%{$term}%")->orWhere('event', 'like', "%{$term}%")->orWhere('gallery_number', 'like', "%{$term}%"));
         }
         foreach (['status', 'type', 'customer_id'] as $field) {
             if ($request->filled($field)) {
-                $query->where($field, $request->input($field));
+                if ($field === 'status' && $request->input($field) === 'expired') {
+                    $query->where(fn ($q) => $q->where('expires_at', '<=', now())->orWhere('status', 'expired'));
+                } else {
+                    $query->where($field, $request->input($field));
+                }
             }
         }
 
@@ -46,10 +52,10 @@ class GalleryController extends Controller
     {
         $businessId = app('currentBusiness')->id;
 
-        $defaults = ['type' => 'selection', 'privacy' => 'private', 'status' => 'draft', 'watermark_enabled' => true];
+        $defaults = ['type' => 'final_delivery', 'privacy' => 'private', 'status' => 'draft', 'watermark_enabled' => true];
         if ($request->filled('shoot_id')) {
             $shoot = Shoot::forBusiness($businessId)->findOrFail($request->integer('shoot_id'));
-            $defaults += ['shoot_id' => $shoot->id, 'booking_id' => $shoot->booking_id, 'customer_id' => $shoot->customer_id, 'name' => $shoot->event.' Selection', 'event' => $shoot->event, 'event_date' => $shoot->shoot_date];
+            $defaults += ['shoot_id' => $shoot->id, 'booking_id' => $shoot->booking_id, 'customer_id' => $shoot->customer_id, 'name' => $shoot->event, 'event' => $shoot->event, 'event_date' => $shoot->shoot_date];
         }
 
         return view('galleries.form', ['gallery' => new Gallery($defaults), 'customers' => Customer::forBusiness($businessId)->get(), 'bookings' => Booking::with('customer')->forBusiness($businessId)->latest()->get(), 'shoots' => Shoot::with('customer')->forBusiness($businessId)->latest()->get()]);
@@ -66,7 +72,7 @@ class GalleryController extends Controller
         unset($d['pin']);
         $g = Gallery::create($d);
 
-        return redirect()->route('galleries.show', $g);
+        return redirect()->route($g->type === 'final_delivery' ? 'galleries.workflow' : 'galleries.show', $g);
     }
 
     public function show(Gallery $gallery): View
@@ -112,16 +118,35 @@ class GalleryController extends Controller
         return redirect()->route('galleries.index')->with('success', 'Gallery archived.');
     }
 
-    public function upload(UploadPhotosRequest $r, Gallery $gallery, PhotoProcessingService $s, SubscriptionLimitService $limits, GalleryAccessService $access): RedirectResponse
+    public function extend(Request $request, Gallery $gallery): RedirectResponse
+    {
+        $this->guard($gallery);
+        abort_unless($request->user()->hasPermission('galleries.manage'), 403);
+        $days = (int) $request->validate(['days' => 'required|integer|in:7,30'])['days'];
+        DB::transaction(function () use ($gallery, $days) {
+            $locked = Gallery::lockForUpdate()->findOrFail($gallery->id);
+            $previous = $locked->expires_at;
+            $expires = ($previous && $previous->isFuture() ? $previous->copy() : now())->addDays($days);
+            $locked->update(['expires_at' => $expires]);
+            // Keep links that followed the gallery date aligned; independent
+            // shorter deadlines and revoked links retain their restrictions.
+            $locked->accessTokens()->whereNull('revoked_at')->where('expires_at', $previous)->update(['expires_at' => $expires, 'notified_30_at' => null, 'notified_7_at' => null, 'notified_1_at' => null]);
+        });
+
+        return back()->with('success', 'Gallery expiry extended.');
+    }
+
+    public function upload(UploadPhotosRequest $r, Gallery $gallery, PhotoProcessingService $s, SubscriptionLimitService $limits, GalleryAccessService $access): RedirectResponse|JsonResponse
     {
         $this->guard($gallery);
         $limits->assertCanStore(app('currentBusiness'), collect($r->file('photos'))->sum(fn ($file) => $file->getSize()));
-        foreach ($r->file('photos') as $f) {
-            $s->store($gallery, $f, $r->boolean('is_final'));
+        $s->storeBatch($gallery, $r->file('photos'), $r->boolean('is_final'));
+        if (! $r->boolean('is_final') && $gallery->status === 'draft') {
+            $gallery->update(['status' => 'proofs_ready']);
         }
-        if (! $r->boolean('is_final') && ! $gallery->accessTokens()->where('purpose', 'selection')->whereNull('revoked_at')->exists()) {
-            $access->generate($gallery, 'selection', $gallery->expires_at);
-            $gallery->update(['status' => 'selection_link_ready']);
+
+        if ($r->expectsJson()) {
+            return response()->json(['uploaded' => count($r->file('photos'))]);
         }
 
         return back()->with('success', 'Photos uploaded and processed.');
@@ -132,9 +157,9 @@ class GalleryController extends Controller
         $this->guard($gallery);
         abort_unless($photo->gallery_id === $gallery->id, 404);
         $path = $photo->preview_path ?: $photo->thumbnail_path;
-        abort_unless($path && Storage::disk('local')->exists($path), 404);
+        abort_unless($path && PhotoStorage::disk($path)->exists($path), 404);
 
-        return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private, max-age=3600']);
+        return response(PhotoStorage::disk($path)->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private, max-age=3600']);
     }
 
     public function download(Gallery $gallery, Photo $photo)
@@ -142,7 +167,7 @@ class GalleryController extends Controller
         $this->guard($gallery);
         abort_unless($photo->gallery_id === $gallery->id && $gallery->downloads_enabled && $photo->is_downloadable, 403, 'Payment and gallery download permission are required.');
 
-        return Storage::disk('local')->download($photo->original_path, $photo->filename);
+        return PhotoStorage::disk($photo->original_path)->download($photo->original_path, $photo->filename);
     }
 
     public function zip(Request $request, Gallery $gallery, ZipDownloadService $service)

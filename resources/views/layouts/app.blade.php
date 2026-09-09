@@ -7,8 +7,8 @@
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     <link rel="apple-touch-icon" href="{{ asset('images/photohub-logo-web.png') }}">
     <title>@yield('title','PhotoHub')</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('vendor/bootstrap-icons/bootstrap-icons.css') }}" rel="stylesheet">
     <link href="{{ asset('css/photohub.css') }}" rel="stylesheet">
 </head>
 <body>
@@ -20,11 +20,9 @@
         'Workspace' => [
             ['dashboard','dashboard','grid-1x2-fill','Overview','dashboard.view'],
             ['calendar','calendar','calendar3','Calendar','bookings.view'],
-            ['tasks.index','tasks.*','check2-square','Tasks','bookings.view'],
         ],
         'Clients & work' => [
             ['customers.index','customers.*','people-fill','Customers','customers.view'],
-            ['leads.index','leads.*','person-plus-fill','Leads','customers.view'],
             ['bookings.index','bookings.*','calendar-check-fill','Bookings','bookings.view'],
             ['shoots.index','shoots.*','camera-fill','Shoots','bookings.view'],
             ['galleries.index','galleries.*','images','Galleries','galleries.view'],
@@ -32,17 +30,11 @@
             ['portfolio.index','portfolio.*','collection-fill','Portfolio','galleries.manage'],
         ],
         'Business' => [
-            ['quotations.index','quotations.*','file-earmark-text-fill','Quotations','finance.view'],
             ['invoices.index','invoices.*','receipt-cutoff','Invoices','finance.view'],
             ['expenses.index','expenses.*','wallet2','Expenses','finance.view'],
-            ['orders.index','orders.*','bag-check-fill','Photo orders','finance.view'],
-            ['prints.index','prints.*','printer-fill','Print orders','finance.view'],
             ['reports.index','reports.*','bar-chart-fill','Reports','reports.view'],
         ],
-        'Team & communication' => [
-            ['messages.index','messages.*','chat-dots-fill','Messages','customers.view'],
-            ['contracts.index','contracts.*','file-earmark-lock-fill','Contracts','customers.view'],
-            ['reviews.index','reviews.*','star-fill','Reviews','customers.view'],
+        'Team' => [
             ['equipment.index','equipment.*','briefcase-fill','Equipment','staff.manage'],
             ['staff.index','staff.*','person-badge-fill','Staff','staff.view'],
         ],
@@ -52,6 +44,7 @@
             ['settings.index','settings.*','gear-fill','Settings','settings.manage'],
         ],
     ];
+    if (\App\Services\PhotoStorage::isLocal() && isset($currentBusiness) && $currentBusiness->id === config('photohub.business_id')) { $navigation['Clients & work'][] = ['sync.index','sync.*','cloud-arrow-up','Cloud sync','galleries.view']; }
 @endphp
 @if(session('impersonator_id'))
 <div class="alert alert-warning rounded-0 border-0 mb-0 d-flex flex-wrap align-items-center justify-content-center gap-3" role="status"><strong><i class="bi bi-eye-fill"></i> View-as-owner mode</strong><span>You are viewing {{ $currentBusiness->name ?? 'this studio' }} as {{ auth()->user()->name }}. Changes are disabled.</span><form method="POST" action="{{ route('admin.impersonation.stop') }}">@csrf<button class="btn btn-sm btn-dark">Return to platform administration</button></form></div>
@@ -100,7 +93,8 @@
             </div>
         </header>
         <section class="page-body">
-            @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+            <x-selection-success-toast />
+            @if(session('success') && !session('selection_success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
             @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
             @yield('content')
         </section>
@@ -109,7 +103,7 @@
 @else
     @yield('content')
 @endauth
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 @stack('scripts')
 </body>
 </html>

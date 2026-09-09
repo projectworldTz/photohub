@@ -29,6 +29,12 @@ return [
     */
 
     'disks' => [
+        'photohub_local' => [
+            'driver' => 'local',
+            'root' => env('PHOTOHUB_LOCAL_STORAGE_PATH') ?: storage_path('app/photohub'),
+            'serve' => false,
+            'throw' => true,
+        ],
 
         'local' => [
             'driver' => 'local',

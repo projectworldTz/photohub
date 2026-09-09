@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Expense;
+use App\Services\PhotoUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +22,7 @@ class ExpenseController extends Controller
         abort_unless(auth()->user()->hasPermission('finance.manage'), 403);
         $d = $r->validate(['date' => 'required|date', 'category' => 'required|in:transport,fuel,equipment,editing,printing,staff,rent,internet,marketing,maintenance,other', 'amount' => 'required|numeric|min:.01', 'description' => 'required|string|max:2000', 'receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240']);
         if ($r->hasFile('receipt')) {
-            $d['receipt_path'] = $r->file('receipt')->store('businesses/'.app('currentBusiness')->id.'/expense-receipts', 'local');
+            $d['receipt_path'] = app(PhotoUploadService::class)->storeFiles(app('currentBusiness'), ['receipt' => $r->file('receipt')], 'expense-receipts')['receipt'];
         }
         unset($d['receipt']);
         Expense::create($d + ['business_id' => app('currentBusiness')->id, 'recorded_by' => auth()->id()]);

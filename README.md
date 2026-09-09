@@ -117,6 +117,8 @@ Back up the database and the private storage disk together. Originals, previews,
 
 ## Verification
 
+For Windows local-first storage, secure cloud publishing, offline synchronization and mobile image downloads, see [Local-first / hybrid deployment](docs/local-first-hybrid.md). The guide includes environment variables, credential provisioning, scheduler setup and the migration/file inventory. Existing cloud mode remains the default.
+
 ```bash
 vendor/bin/pint --test
 php artisan test

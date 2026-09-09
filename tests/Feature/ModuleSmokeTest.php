@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
+use App\Models\Customer;
 use App\Models\Gallery;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,6 +12,29 @@ use Tests\TestCase;
 class ModuleSmokeTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_simplified_studio_and_client_pages_render(): void
+    {
+        $this->seed();
+        $business = Business::where('slug', 'lenscraft-studio')->firstOrFail();
+        $this->get(route('public.business', $business->slug))->assertOk()
+            ->assertSee('Book your photoshoot')->assertDontSee('Send request')->assertDontSee('Client reviews');
+        $this->get('/')->assertOk()->assertDontSee('Send quotations')->assertDontSee('accept contracts');
+
+        $owner = User::where('email', 'owner@example.com')->firstOrFail();
+        $this->actingAs($owner)->withSession(['business_id' => $business->id]);
+        $this->get('/dashboard')->assertOk()->assertSee('1. Book the shoot')->assertSee('4. Deliver final photos')
+            ->assertDontSee('Leads')->assertDontSee('Quotations')->assertDontSee('Contracts')
+            ->assertDontSee('Messages')->assertDontSee('Reviews');
+        $customer = Customer::where('business_id', $business->id)->firstOrFail();
+        $this->get(route('customers.show', $customer))->assertOk()->assertSee('Invoices')
+            ->assertDontSee('Quotations')->assertDontSee('Contracts')->assertDontSee('Messages')->assertDontSee('Reviews');
+
+        $client = User::where('email', 'customer@example.com')->firstOrFail();
+        $this->actingAs($client)->get('/portal')->assertOk()->assertSee('Galleries')->assertSee('Payments and receipts')
+            ->assertDontSee('Quotations')->assertDontSee('Contract awaiting acceptance')
+            ->assertDontSee('Conversation')->assertDontSee('Review the studio');
+    }
 
     public function test_owner_module_pages_render(): void
     {

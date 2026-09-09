@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\BusinessUser;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\StorageQuotaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -65,6 +66,17 @@ class AdminBusinessController extends Controller
         $business->delete();
 
         return redirect()->route('admin.index')->with('success', 'Business archived. Its records remain recoverable.');
+    }
+
+    public function storage(Request $request, Business $business, StorageQuotaService $quota): RedirectResponse
+    {
+        $this->guard();
+        $data = $request->validate(['storage_limit_gb' => 'required|integer|min:1|max:1048576']);
+        $quota->locked($business, function ($locked) use ($data) {
+            $locked->forceFill(['storage_limit_bytes' => $data['storage_limit_gb'] * StorageQuotaService::GB])->save();
+        });
+
+        return back()->with('success', 'Storage allocation updated for this studio. Existing files are retained.');
     }
 
     public function restore(int $id): RedirectResponse

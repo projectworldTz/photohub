@@ -2,28 +2,29 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ReportRequest;
 use App\Services\ReportService;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
-use Illuminate\Http\StreamedResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
-    public function index(Request $r, ReportService $s): View
+    public function index(ReportRequest $r, ReportService $s): View|JsonResponse
     {
-        $from = Carbon::parse($r->input('from', now()->startOfYear()));
-        $to = Carbon::parse($r->input('to', now()->endOfDay()));
-
+        [$from, $to] = $r->period();
         $businessId = app('currentBusiness')->id;
+        $data = ['report' => $s->financial($businessId, $from, $to), 'breakdowns' => $s->breakdowns($businessId, $from, $to), 'analytics' => $s->trends($businessId, $from, $to, $r->validated('interval')), 'compare' => $r->boolean('compare'), 'from' => $from, 'to' => $to];
+        if ($r->expectsJson()) {
+            return response()->json(['html' => view('reports.results', $data)->render(), 'charts' => $data['analytics']])->header('Cache-Control', 'private, no-store');
+        }
 
-        return view('reports.index', ['report' => $s->financial($businessId, $from, $to), 'breakdowns' => $s->breakdowns($businessId, $from, $to), 'from' => $from, 'to' => $to]);
+        return view('reports.index', $data);
     }
 
-    public function csv(Request $r, ReportService $s): StreamedResponse
+    public function csv(ReportRequest $r, ReportService $s): StreamedResponse
     {
-        $from = Carbon::parse($r->input('from', now()->startOfYear()));
-        $to = Carbon::parse($r->input('to', now()));
+        [$from, $to] = $r->period();
         $data = $s->financial(app('currentBusiness')->id, $from, $to);
 
         return response()->streamDownload(function () use ($data) {

@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\FinalPhoto;
 use App\Services\GalleryAccessService;
+use App\Services\PhotoStorage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -18,7 +18,7 @@ class FinalDeliveryController extends Controller
     {
         $record = $access->resolve($token, 'final_delivery');
         if (! $record || ! $record->isUsable()) {
-            return view('public.link-unavailable', ['expired' => $record?->expires_at?->isPast()]);
+            return view('public.link-unavailable', ['expired' => ($record?->expires_at?->isPast() || $record?->gallery?->isExpired())]);
         }
         abort_unless(in_array($record->gallery->status, ['final_published', 'delivered'], true), 404);
         if (! $record->last_accessed_at) {
@@ -33,20 +33,20 @@ class FinalDeliveryController extends Controller
     public function image(string $token, FinalPhoto $photo, GalleryAccessService $access): Response
     {
         $gallery = $this->gallery($token, $access);
-        abort_unless($photo->gallery_id === $gallery->id, 404);
+        abort_unless($photo->gallery_id === $gallery->id && $photo->business_id === $gallery->business_id && $photo->status === 'ready', 404);
         $path = $photo->preview_path ?: $photo->thumbnail_path;
-        abort_unless($path && Storage::disk('local')->exists($path), 404);
+        abort_unless($path && PhotoStorage::disk($path)->exists($path), 404);
 
-        return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private,max-age=3600']);
+        return response(PhotoStorage::disk($path)->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private,no-store']);
     }
 
     public function download(string $token, FinalPhoto $photo, GalleryAccessService $access)
     {
         $gallery = $this->gallery($token, $access);
-        abort_unless($gallery->downloads_enabled && $photo->gallery_id === $gallery->id && Storage::disk('local')->exists($photo->original_path), 403);
+        abort_unless($gallery->downloads_enabled && $photo->gallery_id === $gallery->id && $photo->business_id === $gallery->business_id && $photo->status === 'ready' && PhotoStorage::disk($photo->original_path)->exists($photo->original_path), 403);
         $access->log($gallery, 'final_photo_downloaded', ['final_photo_id' => $photo->id]);
 
-        return Storage::disk('local')->download($photo->original_path, $photo->filename);
+        return PhotoStorage::disk($photo->original_path)->download($photo->original_path, basename($photo->filename), ['Content-Type' => $photo->mime_type, 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     public function zip(Request $request, string $token, GalleryAccessService $access): BinaryFileResponse
@@ -57,7 +57,7 @@ class FinalDeliveryController extends Controller
         if ($ids === []) {
             throw ValidationException::withMessages(['photos' => 'No final photos are available to download.']);
         }
-        $photos = $gallery->finalPhotos()->whereIn('id', array_unique($ids))->get();
+        $photos = $gallery->finalPhotos()->whereIn('id', array_unique($ids))->where('status', 'ready')->get();
         if ($photos->count() !== count(array_unique($ids))) {
             throw ValidationException::withMessages(['photos' => 'Invalid photo selection.']);
         }
@@ -69,8 +69,8 @@ class FinalDeliveryController extends Controller
         $zip = new ZipArchive;
         abort_unless($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true, 500, 'Unable to create the download archive.');
         foreach ($photos as $index => $photo) {
-            abort_unless(Storage::disk('local')->exists($photo->original_path), 404, "Final file missing for {$photo->filename}.");
-            $zip->addFile(Storage::disk('local')->path($photo->original_path), sprintf('%04d-%s', $index + 1, basename($photo->filename)));
+            abort_unless(PhotoStorage::disk($photo->original_path)->exists($photo->original_path), 404, "Final file missing for {$photo->filename}.");
+            $zip->addFile(PhotoStorage::disk($photo->original_path)->path($photo->original_path), sprintf('%04d-%s', $index + 1, basename($photo->filename)));
         }
         $zip->close();
         $access->log($gallery, $request->input('all') ? 'final_download_all' : 'final_download_selected', ['count' => $photos->count()]);

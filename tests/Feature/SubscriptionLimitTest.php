@@ -33,6 +33,7 @@ class SubscriptionLimitTest extends TestCase
         $this->seed();
         $business = Business::first();
         $business->update(['trial_ends_at' => now()->subDay()]);
+        $business->subscriptions()->update(['ends_at' => now()->subDay()]);
 
         $this->expectException(ValidationException::class);
         app(SubscriptionLimitService::class)->assertCanStore($business, 1);

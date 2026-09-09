@@ -49,7 +49,7 @@ class PhotoSelectionService
             ->where('invoices.notes', $note)->where('invoices.status', '!=', 'cancelled')->sum('invoice_items.quantity');
         $newExtras = max(0, $extra - $alreadyBilled);
         $invoice = null;
-        if ($newExtras > 0 && (float) $gallery->extra_photo_price > 0) {
+        if (! $gallery->cloud_replica && $newExtras > 0 && (float) $gallery->extra_photo_price > 0) {
             $invoice = app(InvoiceService::class)->create([
                 'business_id' => $gallery->business_id,
                 'customer_id' => $customerId,

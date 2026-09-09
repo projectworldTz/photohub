@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Business;
 use App\Models\Gallery;
-use App\Models\Photo;
 use App\Models\SubscriptionPlan;
 use Illuminate\Validation\ValidationException;
 
@@ -24,12 +23,15 @@ class SubscriptionLimitService
             'plan' => $plan,
             'trial' => $trial,
             'galleries' => Gallery::withTrashed()->forBusiness($business->id)->count(),
-            'storage_mb' => round(Photo::withTrashed()->forBusiness($business->id)->sum('file_size') / 1048576, 2),
+            'storage_mb' => round(app(StorageQuotaService::class)->usage($business)['used'] / 1048576, 2),
         ];
     }
 
     public function assertCanCreateGallery(Business $business): void
     {
+        if (PhotoStorage::isLocal()) {
+            return;
+        }
         $usage = $this->usage($business);
         $this->assertEntitled($usage);
         if ($usage['galleries'] >= $usage['plan']->gallery_limit) {
@@ -39,11 +41,12 @@ class SubscriptionLimitService
 
     public function assertCanStore(Business $business, int $additionalBytes): void
     {
+        if (PhotoStorage::isLocal()) {
+            return;
+        }
         $usage = $this->usage($business);
         $this->assertEntitled($usage);
-        if (($usage['storage_mb'] + $additionalBytes / 1048576) > $usage['plan']->storage_limit_mb) {
-            throw ValidationException::withMessages(['photos' => 'This upload exceeds your plan storage limit.']);
-        }
+        app(StorageQuotaService::class)->assertFits($business->fresh(), $additionalBytes);
     }
 
     private function assertEntitled(array $usage): void

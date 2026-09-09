@@ -8,13 +8,13 @@ use App\Models\Order;
 use App\Models\Photo;
 use App\Services\OrderService;
 use App\Services\PhotoSelectionService;
+use App\Services\PhotoStorage;
 use App\Services\ZipDownloadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -23,7 +23,7 @@ class PublicGalleryController extends Controller
     public function show(Request $r, string $code): View
     {
         $g = Gallery::with('business')->where('code', $code)->whereIn('status', ['published', 'awaiting_selection', 'selection_completed', 'final', 'delivered'])->firstOrFail();
-        abort_if($g->expires_at?->isPast(), 410, 'This gallery has expired.');
+        abort_if($g->isExpired(), 410, 'This gallery has expired.');
         if ($g->privacy !== 'public' && ! $this->customerAuthorized($r, $g)) {
             return view('public.gallery-unlock', ['gallery' => $g]);
         }
@@ -39,6 +39,7 @@ class PublicGalleryController extends Controller
     public function unlock(Request $r, string $code): RedirectResponse
     {
         $g = Gallery::where('code', $code)->firstOrFail();
+        abort_if($g->isExpired(), 410, 'This gallery has expired.');
         $r->validate(['pin' => 'required|string']);
         abort_unless($g->pin_hash && Hash::check($r->pin, $g->pin_hash), 422, 'The gallery PIN is incorrect.');
         $r->session()->put('gallery_access.'.$g->id, true);
@@ -51,9 +52,9 @@ class PublicGalleryController extends Controller
         $g = $this->access($r, $code);
         abort_unless($photo->gallery_id === $g->id, 404);
         $path = $photo->preview_path ?: $photo->thumbnail_path;
-        abort_unless($path && Storage::disk('local')->exists($path), 404);
+        abort_unless($path && PhotoStorage::disk($path)->exists($path), 404);
 
-        return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private,max-age=3600']);
+        return response(PhotoStorage::disk($path)->get($path), 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private,no-store']);
     }
 
     public function select(Request $r, string $code, Photo $photo, PhotoSelectionService $s): JsonResponse
@@ -84,7 +85,7 @@ class PublicGalleryController extends Controller
         abort_unless($this->customerAuthorized($request, $gallery), 403, 'Customer authentication or the gallery PIN is required.');
         $invoice = $service->complete($gallery, $gallery->customer_id);
 
-        return back()->with('success', $invoice ? 'Selection completed and an invoice was created for extra photos.' : 'Your selection is complete. The studio has been notified.');
+        return back()->with('success', $invoice ? 'Your selection has been saved. An invoice was created for the extra photos.' : 'Your selected photos have been sent to your photographer for editing. Thank you!')->with('selection_success', true);
     }
 
     public function order(Request $r, string $code, OrderService $service): RedirectResponse
@@ -104,17 +105,15 @@ class PublicGalleryController extends Controller
         return view('public.order', ['order' => $order->load('items'), 'gallery' => $gallery]);
     }
 
-    public function download(Request $r, string $code, Photo $photo): Response
+    public function download(Request $r, string $code, Photo $photo)
     {
         $gallery = $this->access($r, $code);
         abort_unless($photo->gallery_id === $gallery->id && $photo->is_downloadable && $gallery->downloads_enabled, 403, 'This photo is not available for download.');
         abort_unless($this->isPaid($gallery, [$photo->id]), 402, 'Payment is required before downloading this photo.');
-        abort_unless(Storage::disk('local')->exists($photo->original_path), 404);
+        abort_unless(PhotoStorage::disk($photo->original_path)->exists($photo->original_path), 404);
 
-        return response(Storage::disk('local')->get($photo->original_path), 200, [
-            'Content-Type' => $photo->mime_type,
-            'Content-Disposition' => 'attachment; filename="'.addslashes(basename($photo->filename)).'"',
-        ]);
+        return PhotoStorage::disk($photo->original_path)->download($photo->original_path, basename($photo->filename), ['Content-Type' => $photo->mime_type, 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
+
     }
 
     public function zip(Request $r, string $code, ZipDownloadService $service): BinaryFileResponse
@@ -157,7 +156,7 @@ class PublicGalleryController extends Controller
     private function access(Request $r, string $code): Gallery
     {
         $g = Gallery::where('code', $code)->firstOrFail();
-        abort_if($g->expires_at?->isPast(), 410);
+        abort_if($g->isExpired(), 410);
         abort_unless($g->privacy === 'public' || $this->customerAuthorized($r, $g), 403, 'You do not have permission to access this gallery.');
 
         return $g;

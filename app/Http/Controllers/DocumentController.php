@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ReportRequest;
 use App\Models\Invoice;
 use App\Models\Quotation;
 use App\Models\Receipt;
 use App\Services\ReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
 
 class DocumentController extends Controller
 {
@@ -33,10 +32,9 @@ class DocumentController extends Controller
         return Pdf::loadView('documents.receipt', ['receipt' => $receipt->load(['customer', 'invoice', 'order', 'payment']), 'business' => app('currentBusiness')])->download($receipt->receipt_number.'.pdf');
     }
 
-    public function report(Request $request, ReportService $service)
+    public function report(ReportRequest $request, ReportService $service)
     {
-        $from = Carbon::parse($request->input('from', now()->startOfYear()));
-        $to = Carbon::parse($request->input('to', now()));
+        [$from, $to] = $request->period();
         $report = $service->financial(app('currentBusiness')->id, $from, $to);
 
         return Pdf::loadView('documents.report', ['report' => $report, 'from' => $from, 'to' => $to, 'business' => app('currentBusiness')])->download('photohub-report.pdf');

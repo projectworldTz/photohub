@@ -1,24 +1,51 @@
 <?php
 
+use App\Models\Business;
 use App\Models\Gallery;
 use App\Models\GalleryAccessToken;
 use App\Models\Invoice;
 use App\Models\Photo;
 use App\Models\Quotation;
 use App\Models\Subscription;
+use App\Models\SyncJob;
 use App\Models\User;
+use App\Services\GalleryExpiryService;
+use App\Services\GallerySyncService;
 use App\Services\NotificationService;
+use App\Services\PhotoStorage;
 use App\Services\ReminderService;
+use App\Services\StorageQuotaService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('photohub:storage-reconcile {--business=}', function () {
+    $query = Business::withTrashed();
+    if ($this->option('business')) {
+        $query->whereKey($this->option('business'));
+    }
+    $query->eachById(function ($business) {
+        $quota = app(StorageQuotaService::class);
+        $quota->reconcile($business);
+        $usage = $quota->usage($business->fresh());
+        $this->info($business->id.': '.$business->name.' — '.$quota::format($usage['used']).' / '.$quota::format($usage['limit']));
+    });
+})->purpose('Inventory existing files without modifying them; safely initialize legacy quotas');
+
+Artisan::command('photohub:galleries-expire', function () {
+    $this->info(app(GalleryExpiryService::class)->expire().' galleries marked expired; files retained.');
+})->purpose('Mark expired galleries without changing workflow status or deleting files');
+
+Schedule::call(fn () => app(GalleryExpiryService::class)->remind())->name('photohub-gallery-expiry-reminders')->dailyAt('08:05')->withoutOverlapping();
 
 Artisan::command('photohub:create-admin {email} {--name=PhotoHub Administrator}', function (string $email) {
     $password = $this->secret('Choose a password (at least 8 characters)');
@@ -83,7 +110,7 @@ Artisan::command('photohub:recover-gallery-files {gallery}', function (int $gall
 })->purpose('Recover gallery photo records from existing private originals');
 
 Schedule::call(function () {
-    Gallery::whereNotNull('expires_at')->where('expires_at', '<', now())->where('status', '!=', 'archived')->update(['status' => 'archived']);
+    app(GalleryExpiryService::class)->expire();
     Invoice::where('due_date', '<', today())->whereIn('status', ['unpaid', 'partially_paid'])->update(['status' => 'overdue']);
     Quotation::where('expiry_date', '<', today())->whereIn('status', ['draft', 'sent'])->update(['status' => 'expired']);
     Subscription::where('ends_at', '<', now())->where('status', 'active')->update(['status' => 'expired']);
@@ -106,7 +133,10 @@ Schedule::call(fn () => app(ReminderService::class)->send())->name('photohub-dai
 Schedule::call(function () {
     GalleryAccessToken::with('gallery.business')->whereNull('revoked_at')->where('expires_at', '>', now())->chunkById(100, function ($tokens) {
         foreach ($tokens as $token) {
-            $days = today()->diffInDays($token->expires_at, false);
+            if (! $token->isUsable() || ! $token->gallery->business || $token->expires_at->greaterThanOrEqualTo($token->gallery->expires_at)) {
+                continue;
+            }
+            $days = (int) today()->diffInDays($token->expires_at->copy()->startOfDay(), false);
             foreach ([30, 7, 1] as $threshold) {
                 $field = 'notified_'.$threshold.'_at';
                 if ($days === $threshold && ! $token->{$field}) {
@@ -117,3 +147,44 @@ Schedule::call(function () {
         }
     });
 })->name('photohub-gallery-link-expiry-reminders')->dailyAt('08:00')->withoutOverlapping();
+
+Artisan::command('photohub:studio-token {business} {--revoke}', function (int $business) {
+    if (config('photohub.mode') !== 'cloud') {
+        $this->error('Run token provisioning on the cloud installation.');
+
+        return 1;
+    }
+    Business::findOrFail($business);
+    if ($this->option('revoke')) {
+        DB::table('studio_api_tokens')->where('business_id', $business)->update(['revoked_at' => now()]);
+        $this->info('Previous studio credentials revoked.');
+
+        return 0;
+    }
+    $plain = Str::random(64);
+    DB::table('studio_api_tokens')->insert(['business_id' => $business, 'token_hash' => hash('sha256', $plain), 'created_at' => now(), 'updated_at' => now()]);
+    $this->info('Store this credential securely in the matching local installation; it is shown only once:');
+    $this->line($plain);
+})->purpose('Issue or revoke a per-studio cloud API token');
+
+Artisan::command('photohub:sync {--limit=10}', function () {
+    if (! PhotoStorage::isLocal()) {
+        return 0;
+    }
+    SyncJob::where('status', 'running')->where('started_at', '<', now()->subMinutes(30))->update(['status' => 'queued', 'next_retry_at' => now()]);
+    $jobs = SyncJob::whereIn('status', ['queued', 'failed'])->where('next_retry_at', '<=', now())->orderBy('id')->limit(max(1, min(100, (int) $this->option('limit'))))->get();
+    foreach ($jobs as $job) {
+        app(GallerySyncService::class)->process($job);
+    }
+    $this->info('Processed '.$jobs->count().' queued operations.');
+})->purpose('Retry durable cloud operations in bounded, resumable photo batches');
+
+Schedule::command('photohub:sync --limit=10')->everyMinute()->withoutOverlapping(35);
+Schedule::call(function () {
+    if (! PhotoStorage::isLocal() || ! config('photohub.auto_selections') || ! config('photohub.cloud_enabled')) {
+        return;
+    }
+    Gallery::where('business_id', config('photohub.business_id'))->whereNotNull('cloud_gallery_id')->whereNotNull('cloud_url')->whereNull('selection_completed_at')->where('cloud_status', 'synced')->eachById(function ($gallery) {
+        app(GallerySyncService::class)->enqueue($gallery, 'selections');
+    });
+})->name('photohub-selection-sync')->everyFiveMinutes()->withoutOverlapping();

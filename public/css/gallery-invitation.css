@@ -1,0 +1,20 @@
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+.gallery-invitation{position:relative;isolation:isolate;min-height:720px;min-height:min(900px,95svh);padding:36px 6vw 24px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;background:radial-gradient(ellipse at 75% 20%,#655544,transparent 55%),linear-gradient(135deg,#111c1b,#252823 55%,#121714);color:#fff;overflow:hidden}
+.invitation-cover,.invitation-shade{position:absolute;inset:0;width:100%;height:100%;z-index:-2;object-fit:cover;object-position:center 38%}
+.invitation-shade{z-index:-1;background:linear-gradient(180deg,rgba(5,12,10,.52),rgba(5,12,10,.35) 30%,rgba(5,12,10,.82))}
+.invitation-studio{display:flex;align-items:center;gap:12px;font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;font-weight:600;max-width:100%;overflow-wrap:anywhere}
+.invitation-studio img{width:46px;height:46px;object-fit:contain;background:#fff;border-radius:50%;padding:5px}
+.studio-monogram{display:grid;place-items:center;border:1px solid #d6c8a988;width:44px;height:44px;flex-shrink:0;border-radius:50%;font-family:Georgia,serif;font-size:1.5rem;color:#e2d4b5}
+.invitation-content{max-width:850px;padding:70px 0 55px}
+.invitation-eyebrow{text-transform:uppercase;letter-spacing:.25em;font-size:.67rem;color:#e3d5b8;margin-bottom:24px}
+.gallery-invitation h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(2.8rem,7vw,6.3rem);font-weight:400;line-height:1.08;letter-spacing:-.035em;text-wrap:balance;overflow-wrap:anywhere;margin:0 0 22px;text-shadow:0 2px 28px #0003}
+.invitation-event{font-size:.83rem;letter-spacing:.12em;color:#f1ede5}.invitation-event span{padding:0 10px;color:#d6c8a9}
+.invitation-rule{width:42px;height:1px;background:#d6c8a9;margin:26px auto}
+.invitation-note{max-width:500px;margin:0 auto 30px;color:#e8e7e1;font-size:1rem;line-height:1.8;text-wrap:pretty}
+.invitation-button{display:inline-flex;align-items:center;gap:30px;background:#f3eddf;color:#202922;text-decoration:none;padding:17px 27px;font-weight:600;font-size:.83rem;border:1px solid #f3eddf;transition:background .2s}
+.invitation-button:hover{background:#fff;color:#202922}.invitation-button:focus-visible{outline:3px solid #fff;outline-offset:5px}
+.invitation-details{font-size:.72rem;color:#e0ddd4;margin:20px 0 0}.invitation-details span{padding:0 8px}
+.invitation-signature{font-family:Georgia,serif;font-style:italic;font-size:.85rem;color:#ded7c8}
+#client-photos{padding-top:40px!important}.invitation-unlock{background:#f6f3ed;padding:50px 20px;color:#26322c}
+@media(max-width:600px){.gallery-invitation{min-height:660px;padding:24px 22px}.invitation-content{padding:55px 0 40px}.invitation-note{font-size:.9rem}.invitation-studio{font-size:.67rem;letter-spacing:.12em}.invitation-event{font-size:.75rem}.invitation-button{width:100%;justify-content:center}.invitation-details{line-height:1.8}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.invitation-button{transition:none}}
