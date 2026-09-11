@@ -55,7 +55,7 @@ class CloudStudioService
                 if (! $connection->api_token) {
                     // UUID + persistent secret make a lost registration response safely retryable.
                     // Only public studio branding is sent, never customers or internal data.
-                    $result = Http::baseUrl($url)->acceptJson()->connectTimeout(5)->timeout(15)->withoutRedirecting()
+                    $result = Http::baseUrl($url)->acceptJson()->connectTimeout(10)->timeout(30)->withoutRedirecting()
                         ->post('/api/share/v1/studios/register', ['studio_uuid' => $connection->identity_uuid,
                             'registration_secret' => $connection->registration_secret, 'name' => $business->name,
                             'currency' => $business->currency, 'app_version' => config('photohub.app_version')])->throw()->json();
@@ -65,7 +65,7 @@ class CloudStudioService
                     $connection->update(['cloud_studio_id' => (int) $result['cloud_studio_id'], 'api_token' => $result['studio_token'], 'registered_at' => now()]);
                 }
                 $health = Http::baseUrl($url.'/api/sync/v1')->withToken($connection->api_token)->acceptJson()
-                    ->connectTimeout(5)->timeout(15)->withoutRedirecting()->get('health')->throw()->json();
+                    ->connectTimeout(10)->timeout(30)->withoutRedirecting()->get('health')->throw()->json();
                 $this->acceptHealth($connection, $health);
                 return $connection->fresh();
             });

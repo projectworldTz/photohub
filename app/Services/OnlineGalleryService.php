@@ -34,7 +34,7 @@ class OnlineGalleryService
             }
             $job = SyncJob::where('gallery_id', $gallery->id)->where('type', $type)->whereNotNull('explicit_requested_at')
                 ->whereIn('status', ['queued', 'running', 'failed'])->latest('id')->first();
-            if ($job && $job->status === 'running' && $job->started_at?->gt(now()->subMinutes(3))) {
+            if ($job && $job->status === 'running' && $job->started_at?->gt(now()->subMinutes(6))) {
                 return $job;
             }
             if ($type === 'remove') {
@@ -67,7 +67,7 @@ class OnlineGalleryService
         if (! $job->explicit_requested_at) {
             return; // Old queued work is historical, not permission to upload now.
         }
-        $lock = Cache::lock('photohub-sync-gallery-'.$gallery->id, 180);
+        $lock = Cache::lock('photohub-sync-gallery-'.$gallery->id, 360);
         if (! $lock->get()) {
             return;
         }

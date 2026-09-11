@@ -85,7 +85,7 @@ class SyncController extends Controller
 
     private function advance(Request $request, Gallery $gallery, SyncJob $job, OnlineGalleryService $sharing)
     {
-        @set_time_limit(120);
+        @set_time_limit(300);
         $sharing->process($job);
         return $this->result($request, $gallery, $job->fresh(), $sharing);
     }

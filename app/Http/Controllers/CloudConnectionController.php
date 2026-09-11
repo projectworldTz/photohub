@@ -28,7 +28,7 @@ class CloudConnectionController extends Controller
                 }
                 // Verify a replacement before overwriting working credentials.
                 $health = Http::baseUrl($url.'/api/sync/v1')->withToken($data['cloud_api_token'])->acceptJson()
-                    ->withoutRedirecting()->connectTimeout(5)->timeout(15)->get('health')->throw()->json();
+                    ->withoutRedirecting()->connectTimeout(10)->timeout(30)->get('health')->throw()->json();
                 if (! is_array($health) || empty($health['cloud_studio_id'])) {
                     throw new CloudConnectionException('Update the cloud server before replacing credentials so studio ownership can be verified.');
                 }

@@ -155,3 +155,12 @@ Locally keep `PHOTOHUB_MODE=local`, `PHOTOHUB_CLOUD_ENABLED=true`, and the commo
 - Headless Edge fixture test passed: sharing percentage, duplicate submission guards, error restoration, two-second copied state, customer submission error feedback, download preparation guard and mobile toast bounds. Run with `node tests/browser/feedback.cjs` (Node 22+ and Edge/Chrome; set `PHOTOHUB_BROWSER` if needed).
 - Added tests cover lightweight/idempotent registration, secret ownership, revoked credentials, existing/future studio isolation, encrypted/hidden local credentials, failed-registration offline safety, legacy credential reuse, cloud ID mismatch rejection and settings recovery.
 - Local database backup and preservation comparison passed. No customer/gallery data was removed. Cloud registration and uploads were tested with fake HTTP responses; this does not claim the new endpoint is deployed on Truehost.
+
+
+### Slow cloud response correction
+
+A live read-only health check reproduced cURL timeout 28 with the previous 10-second request limit: HTTPS connected in about 1.2 seconds, but no response arrived within 10 seconds. A follow-up check with a 30-second limit returned HTTP 200 in about 7.4 seconds. Both saved studio credentials were independently accepted by the cloud.
+
+Cloud metadata/connection requests now allow 30 seconds, TCP/TLS connection establishment 10 seconds, and photo uploads 60 seconds. The local explicit-operation execution budget and gallery lock were increased together to cover the bounded series of requests and avoid overlapping retries. Requests are not automatically replayed. Transport failures name the affected step and log only the studio ID, step, numeric cURL code and timeout; tokens, request payloads and client URLs are excluded.
+
+This change tolerates slow cloud responses; it does not claim to fix the underlying hosting latency. If failures continue, check the affected step in local `storage/logs/laravel.log` and corresponding cloud request/hosting logs. Update the local app for the timeout fix; deploy the same commit to Truehost to keep both installations on the same version.
