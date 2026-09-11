@@ -3,10 +3,20 @@
 @section('content')
 <x-page-header :title="$business->name" :subtitle="$business->email">
     <div class="d-flex gap-2">
-        <form method="POST" action="{{ route('admin.impersonation.start',$business) }}">@csrf<button class="btn btn-primary" @disabled($business->status!=='active')><i class="bi bi-eye"></i> View as owner</button></form>
+        @unless($business->cloud_identity_only)<form method="POST" action="{{ route('admin.impersonation.start',$business) }}">@csrf<button class="btn btn-primary" @disabled($business->status!=='active')><i class="bi bi-eye"></i> View as owner</button></form>@endunless
         <a class="btn btn-light" href="{{ route('admin.businesses.edit',$business) }}">Edit</a>
     </div>
 </x-page-header>
+<section class="content-card mb-3">
+<h2 class="h5">Cloud studio #{{ $business->id }}</h2>
+<p>{{ $business->cloud_identity_only ? 'Lightweight sharing identity' : 'Studio account' }} &middot; {{ ucfirst($business->status) }}</p>
+<p class="small">Registered: {{ $business->created_at }} &middot; Last cloud activity: {{ $business->cloud_last_seen_at ?? 'Never' }} &middot; App version: {{ $business->app_version ?? 'Not reported' }}</p>
+<p class="small">API token: {{ \Illuminate\Support\Facades\DB::table('studio_api_tokens')->where('business_id', $business->id)->whereNull('revoked_at')->exists() ? 'Active' : 'Not active' }}</p>
+<form method="POST" action="{{ route('admin.businesses.revoke-cloud-token', $business) }}" data-feedback-form data-loading="Revoking credentials...">@csrf<button class="btn btn-sm btn-outline-danger">Revoke API credentials</button></form>
+@if($business->cloud_identity_only)
+<details class="mt-3"><summary>Online galleries</summary><div class="table-responsive"><table class="table table-sm mt-2"><thead><tr><th>Gallery</th><th>Status</th><th>Expires</th></tr></thead><tbody>@forelse($business->galleries()->where('cloud_replica', true)->latest()->limit(100)->get() as $onlineGallery)<tr><td>{{ $onlineGallery->name }}</td><td>{{ $onlineGallery->status }}</td><td>{{ $onlineGallery->expires_at?->format('Y-m-d') }}</td></tr>@empty<tr><td colspan="3">No shared galleries.</td></tr>@endforelse</tbody></table></div></details>
+@endif
+</section>
 <div class="row g-3 mb-3">@foreach($counts as $name=>$value)<div class="col-md-3"><div class="metric-card"><div><small>{{ str($name)->title() }}</small><h3>{{ $name==='revenue'?$business->currency.' '.number_format($value):$value }}</h3></div></div></div>@endforeach</div>
 <x-storage-usage :business="$business" />
 @php($limitGb = (int) ceil($business->storage_limit_bytes / \App\Services\StorageQuotaService::GB))

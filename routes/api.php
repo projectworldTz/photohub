@@ -12,3 +12,6 @@ Route::prefix('sync/v1')->middleware([AuthenticateStudioSync::class, 'throttle:6
     Route::get('galleries/{uuid}/selections', [CloudSyncApiController::class, 'selections'])->whereUuid('uuid');
     Route::delete('galleries/{uuid}', [CloudSyncApiController::class, 'remove'])->whereUuid('uuid');
 });
+
+Route::post('share/v1/studios/register', [\App\Http\Controllers\CloudStudioRegistrationController::class, 'register'])
+    ->middleware('throttle:6,1')->name('cloud.studios.register');

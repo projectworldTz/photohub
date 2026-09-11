@@ -16,6 +16,13 @@ use Illuminate\View\View;
 
 class AdminBusinessController extends Controller
 {
+    public function revokeCloudToken(Business $business): RedirectResponse
+    {
+        $this->guard();
+        DB::table('studio_api_tokens')->where('business_id', $business->id)->whereNull('revoked_at')->update(['revoked_at' => now(), 'updated_at' => now()]);
+        return back()->with('success', 'Studio API credentials revoked. Existing local photos are unaffected.');
+    }
+
     public function create(): View
     {
         $this->guard();

@@ -3,7 +3,7 @@
 @if(\App\Services\PhotoStorage::isLocal())
 <div class="content-card storage-local {{ $compact ? 'storage-local-compact' : '' }} mb-3"><h5>Local storage</h5>@php($localBytes = \Illuminate\Support\Facades\DB::table('photos')->where('business_id',$business->id)->sum('file_size') + \Illuminate\Support\Facades\DB::table('final_photos')->where('business_id',$business->id)->sum('file_size'))<strong>{{ \App\Services\StorageQuotaService::format($localBytes) }} originals and edited files (previews additional)</strong><p>Originals, previews and edited photos stay on this computer and do not consume cloud quota.</p>
 @php($cloudStorage = \Illuminate\Support\Facades\Cache::get('photohub-cloud-storage-'.$business->id))
-<p>Cloud storage: @if($cloudStorage){{ \App\Services\StorageQuotaService::format($cloudStorage['used']) }} / {{ \App\Services\StorageQuotaService::format($cloudStorage['limit']) }} (last connection check)@else Check Connection on the sync dashboard to retrieve usage.@endif</p></div>
+<p>Cloud storage: @if($cloudStorage){{ \App\Services\StorageQuotaService::format($cloudStorage['used']) }} / {{ \App\Services\StorageQuotaService::format($cloudStorage['limit']) }} (last connection check)@else Use Check connection in Online Sharing to retrieve usage.@endif</p></div>
 @elseif($compact)
 <div class="overview-storage mb-3">
     <div class="overview-storage-label"><strong>Storage Usage</strong><span class="badge text-bg-{{ $storage['color'] }}">{{ $storage['status'] }}</span></div>

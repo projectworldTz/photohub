@@ -44,8 +44,10 @@ class SubscriptionLimitService
         if (PhotoStorage::isLocal()) {
             return;
         }
-        $usage = $this->usage($business);
-        $this->assertEntitled($usage);
+        if (! $business->cloud_identity_only) {
+            $usage = $this->usage($business);
+            $this->assertEntitled($usage);
+        }
         app(StorageQuotaService::class)->assertFits($business->fresh(), $additionalBytes);
     }
 

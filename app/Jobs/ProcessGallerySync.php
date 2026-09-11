@@ -17,8 +17,7 @@ class ProcessGallerySync implements ShouldQueue
 
     public function handle(GallerySyncService $sync): void
     {
-        if ($job = SyncJob::find($this->syncJobId)) {
-            $sync->process($job);
-        }
+        // Legacy queue messages are retained but cannot start cloud transfers.
+        // Explicit sharing is advanced by authenticated browser requests instead.
     }
 }

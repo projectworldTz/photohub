@@ -24,5 +24,5 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->dontFlash(['cloud_api_token', 'registration_secret']);
     })->create();

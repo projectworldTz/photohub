@@ -101,6 +101,11 @@ Route::middleware(['auth', 'business', 'impersonation.readonly'])->group(functio
     Route::get('sync', [\App\Http\Controllers\SyncController::class, 'index'])->name('sync.index')->middleware('permission:galleries.view');
     Route::post('sync/connection', [\App\Http\Controllers\SyncController::class, 'connection'])->name('sync.connection')->middleware('permission:galleries.manage');
     Route::post('galleries/{gallery}/sync', [\App\Http\Controllers\SyncController::class, 'action'])->name('sync.action')->middleware('permission:galleries.manage');
+    Route::get('online-sharing', [\App\Http\Controllers\SyncController::class, 'index'])->name('online.index')->middleware('permission:galleries.view');
+    Route::post('online-sharing/connection', [\App\Http\Controllers\SyncController::class, 'connection'])->name('online.connection')->middleware('permission:galleries.manage');
+    Route::post('galleries/{gallery}/online/{sharingAction}', [\App\Http\Controllers\SyncController::class, 'start'])->whereIn('sharingAction', ['previews', 'finals', 'selections'])->name('online.start')->middleware('permission:galleries.manage');
+    Route::delete('galleries/{gallery}/online', [\App\Http\Controllers\SyncController::class, 'start'])->defaults('sharingAction', 'remove')->name('online.remove')->middleware('permission:galleries.manage');
+    Route::post('galleries/{gallery}/online/operations/{operation}', [\App\Http\Controllers\SyncController::class, 'continue'])->name('online.continue')->middleware('permission:galleries.manage');
     Route::get('/search', SearchController::class)->name('search');
     Route::get('/activity', ActivityController::class)->name('activity.index')->middleware('permission:settings.manage');
     Route::resource('customers', CustomerController::class)->middleware('permission:customers.view');
@@ -151,6 +156,7 @@ Route::middleware(['auth', 'business', 'impersonation.readonly'])->group(functio
     Route::resource('tasks', TaskController::class)->only(['index', 'store', 'update'])->middleware('permission:bookings.view');
     Route::get('admin', [SuperAdminController::class, 'index'])->name('admin.index');
     Route::resource('admin/businesses', AdminBusinessController::class)->except('index')->names('admin.businesses');
+    Route::post('admin/businesses/{business}/revoke-cloud-token', [AdminBusinessController::class, 'revokeCloudToken'])->name('admin.businesses.revoke-cloud-token');
     Route::patch('admin/businesses/{business}/storage', [AdminBusinessController::class, 'storage'])->name('admin.businesses.storage');
     Route::post('galleries/{gallery}/extend', [GalleryController::class, 'extend'])->name('galleries.extend')->middleware('permission:galleries.manage');
     Route::patch('admin/businesses/{business}/status', [SuperAdminController::class, 'status'])->name('admin.business.status');
@@ -162,6 +168,7 @@ Route::middleware(['auth', 'business', 'impersonation.readonly'])->group(functio
     Route::post('admin/notifications', [SuperAdminController::class, 'broadcast'])->name('admin.notifications');
     Route::post('admin/businesses/{id}/restore', [AdminBusinessController::class, 'restore'])->name('admin.businesses.restore');
     Route::post('admin/businesses/{business}/subscription', [SuperAdminController::class, 'subscribe'])->name('admin.business.subscription');
+    Route::post('settings/cloud', [\App\Http\Controllers\CloudConnectionController::class, 'test'])->name('settings.cloud.test')->middleware('permission:settings.manage');
     Route::get('settings', [SettingsController::class, 'index'])->name('settings.index')->middleware('permission:settings.manage');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update')->middleware('permission:settings.manage');
     Route::get('orders', [OperationsController::class, 'orders'])->name('orders.index')->middleware('permission:finance.view');

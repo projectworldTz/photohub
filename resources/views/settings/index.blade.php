@@ -2,6 +2,7 @@
 @section('title','Settings')
 @section('content')
 <x-page-header title="Business settings"/>
+@include('settings.cloud-connection')
 <x-storage-usage :business="$currentBusiness" compact />
 <div class="content-card settings-plan mb-3">
     <div class="settings-plan-name"><h5 class="mb-0">{{ $usage['plan']?->name ?: 'No active plan' }}</h5>@if($usage['trial'])<span class="badge text-bg-light">Trial</span>@endif</div>

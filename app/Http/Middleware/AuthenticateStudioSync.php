@@ -19,6 +19,7 @@ class AuthenticateStudioSync
         abort_unless($token, 401);
         $business = Business::find($token->business_id);
         abort_unless($business && $business->status === 'active', 403);
+        $business->forceFill(['cloud_last_seen_at' => now()])->saveQuietly();
         $request->attributes->set('sync_business', $business);
 
         return $next($request);

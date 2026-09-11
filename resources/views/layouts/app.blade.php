@@ -12,6 +12,7 @@
     <link href="{{ asset('css/photohub.css') }}" rel="stylesheet">
 </head>
 <body>
+<x-feedback />
 @auth
 @php
     $isAdmin = auth()->user()->is_super_admin;
@@ -44,7 +45,7 @@
             ['settings.index','settings.*','gear-fill','Settings','settings.manage'],
         ],
     ];
-    if (\App\Services\PhotoStorage::isLocal() && isset($currentBusiness) && $currentBusiness->id === config('photohub.business_id')) { $navigation['Clients & work'][] = ['sync.index','sync.*','cloud-arrow-up','Cloud sync','galleries.view']; }
+    if (\App\Services\PhotoStorage::isLocal() && isset($currentBusiness)) { $navigation['Clients & work'][] = ['online.index','online.*','cloud-arrow-up','Online Sharing','galleries.view']; }
 @endphp
 @if(session('impersonator_id'))
 <div class="alert alert-warning rounded-0 border-0 mb-0 d-flex flex-wrap align-items-center justify-content-center gap-3" role="status"><strong><i class="bi bi-eye-fill"></i> View-as-owner mode</strong><span>You are viewing {{ $currentBusiness->name ?? 'this studio' }} as {{ auth()->user()->name }}. Changes are disabled.</span><form method="POST" action="{{ route('admin.impersonation.stop') }}">@csrf<button class="btn btn-sm btn-dark">Return to platform administration</button></form></div>

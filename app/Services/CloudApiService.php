@@ -9,14 +9,13 @@ class CloudApiService
 {
     public function request(int $businessId, string $method, string $path, array $data = [], ?string $file = null): array
     {
-        $url = rtrim((string) config('photohub.cloud_url'), '/');
-        if (! PhotoStorage::isLocal() || ! config('photohub.cloud_enabled') || $businessId !== config('photohub.business_id') || ! config('photohub.studio_token') || ! $url) {
-            throw new RuntimeException('Cloud synchronization is not configured for this studio.');
+        if (! PhotoStorage::isLocal()) {
+            throw new RuntimeException('Online sharing is only available from the local application.');
         }
-        if (parse_url($url, PHP_URL_SCHEME) !== 'https' && ! (config('photohub.allow_http') && parse_url($url, PHP_URL_SCHEME) === 'http')) {
-            throw new RuntimeException('Cloud synchronization requires HTTPS.');
-        }
-        $client = Http::baseUrl($url.'/api/sync/v1')->withToken(config('photohub.studio_token'))->acceptJson()->connectTimeout(3)->timeout($file ? 45 : 10)->withoutRedirecting();
+        $studios = app(CloudStudioService::class);
+        $connection = $studios->ensure(\App\Models\Business::findOrFail($businessId));
+        $url = $studios->validateUrl($connection->base_url);
+        $client = Http::baseUrl($url.'/api/sync/v1')->withToken($connection->api_token)->acceptJson()->connectTimeout(3)->timeout($file ? 45 : 10)->withoutRedirecting();
         $stream = null;
         try {
             if ($file) {
@@ -31,7 +30,14 @@ class CloudApiService
                 throw new RuntimeException('Invalid cloud response.');
             }
 
+            if ($path === 'health') $studios->acceptHealth($connection, $result);
+            else $connection->update(['last_connected_at' => now()]);
             return $result;
+        } catch (\Illuminate\Http\Client\RequestException $error) {
+            if ($error->response->status() === 401 || $path === 'health') {
+                $connection->update(['status' => 'failed', 'last_error' => $studios->safeError($error)]);
+            }
+            throw $error;
         } finally {
             if (is_resource($stream)) {
                 fclose($stream);

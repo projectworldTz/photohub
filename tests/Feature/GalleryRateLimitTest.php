@@ -39,8 +39,8 @@ class GalleryRateLimitTest extends TestCase
         $this->postJson(route('selection.toggle', [$token, $photo]))->assertOk();
         $this->post(route('selection.submit', $token))->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('selection_success', true);
         $this->assertSame('selection_submitted', $gallery->fresh()->status);
-        $this->get(route('selection.show', $token))->assertOk()->assertSee('Selection sent successfully!')->assertSee('id="selection-success-toast"', false);
-        $this->get(route('selection.show', $token))->assertOk()->assertDontSee('id="selection-success-toast"', false)->assertSee('Selection submitted successfully');
+        $this->get(route('selection.show', $token))->assertOk()->assertSee('Your photo selections were submitted successfully.')->assertSee('data-feedback-flash="success"', false);
+        $this->get(route('selection.show', $token))->assertOk()->assertDontSee('data-feedback-flash="success"', false)->assertSee('Selection submitted successfully');
     }
 
     public function test_submission_limit_still_applies_but_does_not_block_other_actions_or_galleries(): void

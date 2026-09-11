@@ -70,7 +70,7 @@ class SecureGalleryWorkflowTest extends TestCase
         $owner = User::where('email', 'owner@example.com')->firstOrFail();
         $this->actingAs($owner)->withSession(['business_id' => $business->id])
             ->get(route('galleries.workflow', $gallery))->assertOk()
-            ->assertSee('Copy invitation')->assertSee('WhatsApp invitation')
+            ->assertSee('Copy invitation')->assertSee('Send via WhatsApp')
             ->assertSee($business->name.' invites you to '.$gallery->name.'.');
     }
 
@@ -122,7 +122,7 @@ class SecureGalleryWorkflowTest extends TestCase
         ])->assertRedirect();
         $gallery = Gallery::where('name', 'Direct wedding delivery')->firstOrFail();
         $this->get(route('galleries.workflow', $gallery))->assertOk()
-            ->assertSee('No selection link is required.')->assertDontSee('Customer selection');
+            ->assertSee('Start by uploading finished photos, then create an invitation to share.')->assertDontSee('<h4>Customer selection</h4>', false);
 
         $this->post(route('galleries.finals.publish', $gallery))->assertSessionHasErrors('finals');
         $this->assertSame('draft', $gallery->fresh()->status);

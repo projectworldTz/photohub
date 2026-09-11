@@ -8,5 +8,7 @@ return [
     'business_id' => (int) env('PHOTOHUB_LOCAL_BUSINESS_ID', 0),
     'studio_token' => env('PHOTOHUB_STUDIO_TOKEN'),
     'allow_http' => env('PHOTOHUB_ALLOW_HTTP', false),
-    'auto_selections' => env('PHOTOHUB_AUTO_SELECTIONS', true),
+    'auto_selections' => false,
+    'registration_enabled' => env('PHOTOHUB_REGISTRATION_ENABLED', true),
+    'app_version' => '1.0',
 ];

@@ -168,23 +168,13 @@ Artisan::command('photohub:studio-token {business} {--revoke}', function (int $b
 })->purpose('Issue or revoke a per-studio cloud API token');
 
 Artisan::command('photohub:sync {--limit=10}', function () {
-    if (! PhotoStorage::isLocal()) {
-        return 0;
-    }
-    SyncJob::where('status', 'running')->where('started_at', '<', now()->subMinutes(30))->update(['status' => 'queued', 'next_retry_at' => now()]);
-    $jobs = SyncJob::whereIn('status', ['queued', 'failed'])->where('next_retry_at', '<=', now())->orderBy('id')->limit(max(1, min(100, (int) $this->option('limit'))))->get();
-    foreach ($jobs as $job) {
-        app(GallerySyncService::class)->process($job);
-    }
-    $this->info('Processed '.$jobs->count().' queued operations.');
-})->purpose('Retry durable cloud operations in bounded, resumable photo batches');
+    $this->info('Automatic synchronization is retired. Use Online Sharing in the gallery.');
+})->purpose('Compatibility command: directs users to explicit online sharing');
 
-Schedule::command('photohub:sync --limit=10')->everyMinute()->withoutOverlapping(35);
-Schedule::call(function () {
-    if (! PhotoStorage::isLocal() || ! config('photohub.auto_selections') || ! config('photohub.cloud_enabled')) {
-        return;
-    }
-    Gallery::where('business_id', config('photohub.business_id'))->whereNotNull('cloud_gallery_id')->whereNotNull('cloud_url')->whereNull('selection_completed_at')->where('cloud_status', 'synced')->eachById(function ($gallery) {
-        app(GallerySyncService::class)->enqueue($gallery, 'selections');
-    });
-})->name('photohub-selection-sync')->everyFiveMinutes()->withoutOverlapping();
+Artisan::command('photohub:sharing-prune {--days=90}', function () {
+    $days = max(30, (int) $this->option('days'));
+    $count = SyncJob::whereNotNull('explicit_requested_at')->whereIn('status', ['completed', 'cancelled'])
+        ->where('completed_at', '<', now()->subDays($days))->delete();
+    $this->info($count.' obsolete sharing operation records pruned; gallery data and legacy history retained.');
+})->purpose('Prune completed explicit sharing records older than the retention period');
+Schedule::command('photohub:sharing-prune')->daily()->withoutOverlapping();

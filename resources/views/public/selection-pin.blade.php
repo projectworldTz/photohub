@@ -6,6 +6,7 @@
 <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
 <x-gallery-social-meta :gallery="$gallery" />
 </head><body>
+<x-feedback />
 <x-gallery-invitation :gallery="$gallery" mode="locked" />
 <main id="unlock-gallery" class="invitation-unlock">
 <form method="POST" action="{{ route('selection.unlock',$token) }}" class="card border-0 rounded-4 p-4 p-md-5 mx-auto" style="max-width:440px">

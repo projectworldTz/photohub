@@ -15,7 +15,7 @@ class SettingsController extends Controller
     {
         $business = app('currentBusiness');
 
-        return view('settings.index', ['settings' => BusinessSetting::forBusiness($business->id)->pluck('value', 'key'), 'usage' => $limits->usage($business)]);
+        return view('settings.index', ['cloudConnection' => \App\Services\PhotoStorage::isLocal() ? app(\App\Services\CloudStudioService::class)->connection($business) : null, 'settings' => BusinessSetting::forBusiness($business->id)->pluck('value', 'key'), 'usage' => $limits->usage($business)]);
     }
 
     public function update(Request $r): RedirectResponse

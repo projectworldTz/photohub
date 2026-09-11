@@ -13,6 +13,13 @@ class Business extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $hidden = ['registration_key_hash'];
+
+    public function cloudConnection(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(StudioCloudConnection::class);
+    }
+
     protected $fillable = ['name', 'slug', 'email', 'phone', 'address', 'city', 'country', 'logo_path', 'description', 'category', 'currency', 'timezone', 'status', 'trial_ends_at'];
 
     protected static function booted(): void
@@ -24,7 +31,7 @@ class Business extends Model
 
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime', 'storage_limit_bytes' => 'integer'];
+        return ['cloud_identity_only' => 'boolean', 'cloud_last_seen_at' => 'datetime', 'trial_ends_at' => 'datetime', 'storage_limit_bytes' => 'integer'];
     }
 
     public function users(): BelongsToMany

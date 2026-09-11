@@ -54,7 +54,7 @@ class Gallery extends Model
 
     protected function casts(): array
     {
-        return ['expired_at' => 'datetime', 'event_date' => 'date', 'expires_at' => 'datetime', 'selection_completed_at' => 'datetime', 'downloads_enabled' => 'boolean', 'payment_required' => 'boolean', 'watermark_enabled' => 'boolean', 'require_exact_selection' => 'boolean', 'face_search_enabled' => 'boolean'];
+        return ['preview_shared_at' => 'datetime', 'final_shared_at' => 'datetime', 'selection_synced_at' => 'datetime', 'expired_at' => 'datetime', 'event_date' => 'date', 'expires_at' => 'datetime', 'selection_completed_at' => 'datetime', 'downloads_enabled' => 'boolean', 'payment_required' => 'boolean', 'watermark_enabled' => 'boolean', 'require_exact_selection' => 'boolean', 'face_search_enabled' => 'boolean'];
     }
 
     public function customer(): BelongsTo

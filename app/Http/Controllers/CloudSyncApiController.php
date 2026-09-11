@@ -17,7 +17,7 @@ class CloudSyncApiController extends Controller
 {
     public function health(Request $request)
     {
-        return response()->json(['connected' => true, 'storage' => app(StorageQuotaService::class)->usage($request->attributes->get('sync_business'))]);
+        return response()->json(['connected' => true, 'cloud_studio_id' => $request->attributes->get('sync_business')->id, 'storage' => app(StorageQuotaService::class)->usage($request->attributes->get('sync_business'))]);
     }
 
     private function gallery(Request $request, string $uuid): Gallery
